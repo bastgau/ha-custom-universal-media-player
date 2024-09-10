@@ -8,7 +8,7 @@ In the original [version](https://github.com/home-assistant/core/tree/dev/homeas
 
 In the modified version (this version), these attributes are now accessible by the custom universal media player.
 
-List of attributes :
+List of attributes added and now accessible:
 
 - media_content_type
 - media_duration
