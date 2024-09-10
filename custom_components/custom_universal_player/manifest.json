@@ -7,5 +7,5 @@
   "integration_type": "hub",
   "iot_class": "calculated",
   "loggers": ["custom_universal_media_player"],
-  "version": "0.1.0"
+  "version": "1.0.0"
 }
