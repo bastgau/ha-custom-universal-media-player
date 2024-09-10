@@ -28,4 +28,6 @@ List of attributes :
 - media_position
 - media_position_updated_at
 
+The configuration has been unchanged. Please check the notice of the universal media player.
+
 Enjoy!
