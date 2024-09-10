@@ -1,4 +1,4 @@
-"""Combination of multiple media players for a universal controller."""
+"""Combination of multiple media players for a custom universal controller."""
 
 from __future__ import annotations
 
@@ -143,15 +143,15 @@ async def async_setup_platform(
     async_add_entities: AddEntitiesCallback,
     discovery_info: DiscoveryInfoType | None = None,
 ) -> None:
-    """Set up the universal media players."""
-    await async_setup_reload_service(hass, "universal", ["media_player"])
+    """Set up the custom universal media players."""
+    await async_setup_reload_service(hass, "custom_universal_media_player", ["media_player"])
 
-    player = UniversalMediaPlayer(hass, config)
+    player = CustomUniversalMediaPlayer(hass, config)
     async_add_entities([player])
 
 
-class UniversalMediaPlayer(MediaPlayerEntity):
-    """Representation of an universal media player."""
+class CustomUniversalMediaPlayer(MediaPlayerEntity):
+    """Representation of a custom universal media player."""
 
     _attr_should_poll = False
 
@@ -160,7 +160,7 @@ class UniversalMediaPlayer(MediaPlayerEntity):
         hass,
         config,
     ):
-        """Initialize the Universal media device."""
+        """Initialize the Custom universal media device."""
         self.hass = hass
         self._attr_name = config.get(CONF_NAME)
         self._children = config.get(CONF_CHILDREN)
@@ -371,7 +371,7 @@ class UniversalMediaPlayer(MediaPlayerEntity):
     def entity_picture(self):
         """Return image of the media playing.
 
-        The universal media player doesn't use the parent class logic, since
+        The custom universal media player doesn't use the parent class logic, since
         the url is coming from child entity pictures which have already been
         sent through the API proxy.
         """

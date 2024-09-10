@@ -1,8 +1,8 @@
 {
-  "domain": "universal",
-  "name": "Universal media player",
+  "domain": "custom_universal_media_player",
+  "name": "Custom universal media player",
   "codeowners": [],
-  "documentation": "https://www.home-assistant.io/integrations/universal",
+  "documentation": "https://bastgau.github.com/bastgau/ha-custom-universal-media-player",
   "iot_class": "calculated",
   "quality_scale": "internal"
 }

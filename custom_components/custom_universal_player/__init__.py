@@ -1,1 +1,1 @@
-"""The universal component."""
+"""The custom universal media player component."""
