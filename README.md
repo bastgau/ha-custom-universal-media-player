@@ -1,5 +1,8 @@
 # Custom universal media player for Home Assistant
 
+![HACS validation](https://github.com/bastgau/ha-custom-universal-media-player/actions/workflows/validate-for-hacs.yml/badge.svg)
+![HASSFEST validation](https://github.com/bastgau/ha-custom-universal-media-player/actions/workflows/validate-with-hassfest.yml/badge.svg)
+
 Original component : [Universal media player](https://www.home-assistant.io/integrations/universal/)
 
 > A universal media player can combine multiple existing entities in Home Assistant into a single media player entity. This is used to create a single media player entity that can control an entire media center.
