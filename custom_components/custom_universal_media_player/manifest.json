@@ -5,6 +5,7 @@
   "documentation": "https://bastgau.github.com/bastgau/ha-custom-universal-media-player",
   "issue_tracker": "https://bastgau.github.com/bastgau/ha-custom-universal-media-player/issues",
   "integration_type": "hub",
+  "description": "Integration providing a new universal media player with access to all child's attributes.",
   "loggers": ["custom_universal_media_player"],
   "requirements": [],
   "dependencies": [],
