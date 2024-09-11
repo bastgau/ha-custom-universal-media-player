@@ -6,5 +6,7 @@
   "issue_tracker": "https://bastgau.github.com/bastgau/ha-custom-universal-media-player/issues",
   "integration_type": "hub",
   "loggers": ["custom_universal_media_player"],
-  "version": "1.0.0"
+  "requirements": [],
+  "dependencies": [],
+  "version": "v1.1.0"
 }

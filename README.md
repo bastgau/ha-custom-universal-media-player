@@ -1,4 +1,4 @@
-# Custom universal media player
+# Custom universal media player for Home Assistant
 
 Original component : [Universal media player](https://www.home-assistant.io/integrations/universal/)
 
