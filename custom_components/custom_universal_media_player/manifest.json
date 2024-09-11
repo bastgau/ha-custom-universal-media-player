@@ -2,12 +2,12 @@
   "domain": "custom_universal_media_player",
   "name": "Custom universal media player",
   "codeowners": ["@bastgau"],
+  "dependencies": [],
   "documentation": "https://bastgau.github.com/bastgau/ha-custom-universal-media-player",
-  "issue_tracker": "https://bastgau.github.com/bastgau/ha-custom-universal-media-player/issues",
   "integration_type": "hub",
   "iot_class": "calculated",
+  "issue_tracker": "https://bastgau.github.com/bastgau/ha-custom-universal-media-player/issues",
   "loggers": ["custom_universal_media_player"],
   "requirements": [],
-  "dependencies": [],
   "version": "v1.1.0"
 }
