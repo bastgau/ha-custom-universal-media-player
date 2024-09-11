@@ -1,6 +1,7 @@
 {
     "name": "Custom universal media player",
+    "hacs": "2.0.0",
     "homeassistant": "2024.9.0",
-    "render_readme": true,
-    "country": "FR"
+    "country": "FR",
+    "render_readme": true
   }
