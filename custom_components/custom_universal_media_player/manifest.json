@@ -3,11 +3,11 @@
   "name": "Custom universal media player",
   "codeowners": ["@bastgau"],
   "dependencies": [],
-  "documentation": "https://bastgau.github.com/bastgau/ha-custom-universal-media-player",
+  "documentation": "https://github.com/bastgau/ha-custom-universal-media-player",
   "integration_type": "hub",
   "iot_class": "calculated",
-  "issue_tracker": "https://bastgau.github.com/bastgau/ha-custom-universal-media-player/issues",
+  "issue_tracker": "https://github.com/bastgau/ha-custom-universal-media-player/issues",
   "loggers": ["custom_universal_media_player"],
   "requirements": [],
-  "version": "v1.2.0"
+  "version": "v1.2.1"
 }
