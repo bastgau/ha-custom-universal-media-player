@@ -6,7 +6,6 @@ from copy import copy
 from typing import Any
 
 import voluptuous as vol
-
 from homeassistant.components.media_player import (
     ATTR_APP_ID,
     ATTR_APP_NAME,
@@ -35,8 +34,6 @@ from homeassistant.components.media_player import (
     ATTR_SOUND_MODE,
     ATTR_SOUND_MODE_LIST,
     DEVICE_CLASSES_SCHEMA,
-    DOMAIN as MEDIA_PLAYER_DOMAIN,
-    PLATFORM_SCHEMA as MEDIA_PLAYER_PLATFORM_SCHEMA,
     SERVICE_CLEAR_PLAYLIST,
     SERVICE_PLAY_MEDIA,
     SERVICE_SELECT_SOUND_MODE,
@@ -46,6 +43,12 @@ from homeassistant.components.media_player import (
     MediaPlayerState,
     MediaType,
     RepeatMode,
+)
+from homeassistant.components.media_player import (
+    DOMAIN as MEDIA_PLAYER_DOMAIN,
+)
+from homeassistant.components.media_player import (
+    PLATFORM_SCHEMA as MEDIA_PLAYER_PLATFORM_SCHEMA,
 )
 from homeassistant.components.media_player.browse_media import BrowseMedia
 from homeassistant.const import (
@@ -93,6 +96,35 @@ from homeassistant.helpers.event import (
 from homeassistant.helpers.reload import async_setup_reload_service
 from homeassistant.helpers.service import async_call_from_config
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
+
+from . import ATTR_ENTITY_PICTURE_LOCAL  # noqa: F401
+
+ATTR_TO_PROPERTY = [
+    ATTR_MEDIA_VOLUME_LEVEL,
+    ATTR_MEDIA_VOLUME_MUTED,
+    ATTR_MEDIA_CONTENT_ID,
+    ATTR_MEDIA_CONTENT_TYPE,
+    ATTR_MEDIA_DURATION,
+    ATTR_MEDIA_POSITION,
+    ATTR_MEDIA_POSITION_UPDATED_AT,
+    ATTR_MEDIA_TITLE,
+    ATTR_MEDIA_ARTIST,
+    ATTR_MEDIA_ALBUM_NAME,
+    ATTR_MEDIA_ALBUM_ARTIST,
+    ATTR_MEDIA_TRACK,
+    ATTR_MEDIA_SERIES_TITLE,
+    ATTR_MEDIA_SEASON,
+    ATTR_MEDIA_EPISODE,
+    ATTR_MEDIA_CHANNEL,
+    ATTR_MEDIA_PLAYLIST,
+    ATTR_APP_ID,
+    ATTR_APP_NAME,
+    ATTR_INPUT_SOURCE,
+    ATTR_SOUND_MODE,
+    ATTR_MEDIA_SHUFFLE,
+    ATTR_MEDIA_REPEAT,
+]
+
 
 ATTR_ACTIVE_CHILD = "active_child"
 
@@ -144,7 +176,9 @@ async def async_setup_platform(
     discovery_info: DiscoveryInfoType | None = None,
 ) -> None:
     """Set up the custom universal media players."""
-    await async_setup_reload_service(hass, "custom_universal_media_player", ["media_player"])
+    await async_setup_reload_service(
+        hass, "custom_universal_media_player", ["media_player"]
+    )
 
     player = CustomUniversalMediaPlayer(hass, config)
     async_add_entities([player])
@@ -247,12 +281,24 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):
 
     def _entity_lkp(self, entity_id, state_attr=None):
         """Look up an entity state."""
-        if (state_obj := self.hass.states.get(entity_id)) is None:
-            return None
 
-        if state_attr:
-            return state_obj.attributes.get(state_attr)
-        return state_obj.state
+        entities_id = entity_id.split("-")
+
+        for current_entity_id in entities_id:
+            if (state_obj := self.hass.states.get(current_entity_id)) is None:
+                continue
+
+            if state_attr:
+                value = state_obj.attributes.get(state_attr)
+
+                if value is not None:
+                    return value
+
+                continue
+
+            return state_obj.state
+
+        return None
 
     def _override_or_child_attr(self, attr_name):
         """Return either the override or the active child for attr_name."""
@@ -547,6 +593,29 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):
     def media_position_updated_at(self):
         """When was the position of the current playing media valid."""
         return self._override_or_child_attr(ATTR_MEDIA_POSITION_UPDATED_AT)
+
+    @property
+    def state_attributes(self) -> dict[str, Any]:
+        """Return the state attributes."""
+        state_attr: dict[str, Any] = {}
+
+        # if self.support_grouping:
+        #     state_attr[ATTR_GROUP_MEMBERS] = self.group_members
+
+        if self.state == MediaPlayerState.OFF:
+            return state_attr
+
+        for attr in ATTR_TO_PROPERTY:
+            if (value := getattr(self, attr)) is not None:
+                state_attr[attr] = value
+
+        if (
+            ATTR_ENTITY_PICTURE_LOCAL not in state_attr
+            or "https:" not in state_attr[ATTR_ENTITY_PICTURE_LOCAL]
+        ):
+            state_attr[ATTR_ENTITY_PICTURE_LOCAL] = self.media_image_local
+
+        return state_attr
 
     async def async_turn_on(self) -> None:
         """Turn the media player on."""
