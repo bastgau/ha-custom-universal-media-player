@@ -132,5 +132,5 @@ max-complexity = 25
 
 [tool.ruff]
 target-version = "py313"
-line-length = 120
+line-length = 88
 indent-width = 4
