@@ -69,7 +69,7 @@ ignore = [
   "W191",
 ]
 select = ["ALL"]
-src = ["custom_components/pi_hole_v6"]
+src = ["custom_components/custom_universal_media_player"]
 
 [tool.link.flake8-import-conventions.extend-aliases]
 "homeassistant.helpers.area_registry" = "ar"
