@@ -5,12 +5,13 @@ __pycache__
 */build/*
 */dist/*
 
-
 # misc
 .coverage
 coverage.xml
 
-
 # Home Assistant configuration
 config/*
 .DS_Store
+
+custom_components/*
+!custom_components/custom_universal_media_player/
