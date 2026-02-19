@@ -37,7 +37,8 @@
                 "charliermarsh.ruff",
                 "ms-python.black-formatter",
                 "tamasfe.even-better-toml",
-                "eamodio.gitlens"
+                "eamodio.gitlens",
+                "ms-python.pylint"
             ],
             "settings": {
                 "files.eol": "\n",
