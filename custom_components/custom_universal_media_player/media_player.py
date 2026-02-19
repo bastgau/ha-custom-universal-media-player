@@ -174,7 +174,7 @@ async def async_setup_platform(
     async_add_entities: AddEntitiesCallback,
     discovery_info: DiscoveryInfoType | None = None,
 ) -> None:
-    """Set up the custom universal media players.
+    """Set up the custom universal media player.
 
     Args:
         hass: The Home Assistant instance.
@@ -920,7 +920,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):
         await self._async_call_service(SERVICE_SELECT_SOURCE, data, allow_override=True)
 
     async def async_clear_playlist(self) -> None:
-        """Clear players playlist."""
+        """Clear player playlist."""
         await self._async_call_service(SERVICE_CLEAR_PLAYLIST, allow_override=True)
 
     async def async_set_shuffle(self, shuffle: bool) -> None:
