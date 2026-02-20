@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from copy import copy
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import voluptuous as vol
+
 from homeassistant.components.media_player import (
     ATTR_APP_ID,
     ATTR_APP_NAME,
@@ -34,6 +35,8 @@ from homeassistant.components.media_player import (
     ATTR_SOUND_MODE,
     ATTR_SOUND_MODE_LIST,
     DEVICE_CLASSES_SCHEMA,
+    DOMAIN as MEDIA_PLAYER_DOMAIN,
+    PLATFORM_SCHEMA as MEDIA_PLAYER_PLATFORM_SCHEMA,
     SERVICE_CLEAR_PLAYLIST,
     SERVICE_PLAY_MEDIA,
     SERVICE_SELECT_SOUND_MODE,
@@ -44,13 +47,6 @@ from homeassistant.components.media_player import (
     MediaType,
     RepeatMode,
 )
-from homeassistant.components.media_player import (
-    DOMAIN as MEDIA_PLAYER_DOMAIN,
-)
-from homeassistant.components.media_player import (
-    PLATFORM_SCHEMA as MEDIA_PLAYER_PLATFORM_SCHEMA,
-)
-from homeassistant.components.media_player.browse_media import BrowseMedia
 from homeassistant.const import (
     ATTR_ASSUMED_STATE,
     ATTR_ENTITY_ID,
@@ -85,8 +81,6 @@ from homeassistant.const import (
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.exceptions import TemplateError
 from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers.entity_component import EntityComponent
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import (
     TrackTemplate,
     TrackTemplateResult,
@@ -95,9 +89,16 @@ from homeassistant.helpers.event import (
 )
 from homeassistant.helpers.reload import async_setup_reload_service
 from homeassistant.helpers.service import async_call_from_config
-from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
-from . import ATTR_ENTITY_PICTURE_LOCAL  # noqa: F401
+from . import ATTR_ENTITY_PICTURE_LOCAL
+
+if TYPE_CHECKING:
+    from datetime import datetime
+
+    from homeassistant.components.media_player.browse_media import BrowseMedia
+    from homeassistant.helpers.entity_component import EntityComponent
+    from homeassistant.helpers.entity_platform import AddEntitiesCallback
+    from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 ATTR_TO_PROPERTY = [
     ATTR_MEDIA_VOLUME_LEVEL,
@@ -155,9 +156,7 @@ PLATFORM_SCHEMA = MEDIA_PLAYER_PLATFORM_SCHEMA.extend(
         vol.Required(CONF_NAME): cv.string,
         vol.Optional(CONF_CHILDREN, default=[]): cv.entity_ids,
         vol.Optional(CONF_COMMANDS, default={}): CMD_SCHEMA,
-        vol.Optional(CONF_ATTRS, default={}): vol.Or(
-            cv.ensure_list(ATTRS_SCHEMA), ATTRS_SCHEMA
-        ),
+        vol.Optional(CONF_ATTRS, default={}): vol.Or(cv.ensure_list(ATTRS_SCHEMA), ATTRS_SCHEMA),
         vol.Optional(CONF_BROWSE_MEDIA_ENTITY): cv.string,
         vol.Optional(CONF_UNIQUE_ID): cv.string,
         vol.Optional(CONF_DEVICE_CLASS): DEVICE_CLASSES_SCHEMA,
@@ -172,28 +171,40 @@ async def async_setup_platform(
     hass: HomeAssistant,
     config: ConfigType,
     async_add_entities: AddEntitiesCallback,
-    discovery_info: DiscoveryInfoType | None = None,
+    discovery_info: DiscoveryInfoType | None = None,  # pylint: disable=unused-argument  # noqa: ARG001
 ) -> None:
-    """Set up the custom universal media players."""
-    await async_setup_reload_service(
-        hass, "custom_universal_media_player", ["media_player"]
-    )
+    """Set up the custom universal media player.
+
+    Args:
+        hass: The Home Assistant instance.
+        config: The platform configuration.
+        async_add_entities: Callback to register new entities.
+        discovery_info: Optional discovery information.
+
+    """
+    await async_setup_reload_service(hass, "custom_universal_media_player", ["media_player"])
 
     player = CustomUniversalMediaPlayer(hass, config)
     async_add_entities([player])
 
 
-class CustomUniversalMediaPlayer(MediaPlayerEntity):
+class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many-public-methods,too-many-instance-attributes
     """Representation of a custom universal media player."""
 
     _attr_should_poll = False
 
     def __init__(
         self,
-        hass,
-        config,
-    ):
-        """Initialize the Custom universal media device."""
+        hass: HomeAssistant,
+        config: dict[str, Any],
+    ) -> None:
+        """Initialize the Custom universal media device.
+
+        Args:
+            hass: The Home Assistant instance.
+            config: The platform configuration dictionary.
+
+        """
         self.hass = hass
         self._attr_name = config.get(CONF_NAME)
         self._children = config.get(CONF_CHILDREN)
@@ -220,7 +231,12 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):
         def _async_on_dependency_update(
             event: Event[EventStateChangedData],
         ) -> None:
-            """Update ha state when dependencies update."""
+            """Update ha state when dependencies update.
+
+            Args:
+                event: The state change event that triggered this callback.
+
+            """
             self.async_set_context(event.context)
             self._async_update()
             self.async_write_ha_state()
@@ -230,19 +246,21 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):
             event: Event[EventStateChangedData] | None,
             updates: list[TrackTemplateResult],
         ) -> None:
-            """Update state when template state changes."""
+            """Update state when template state changes.
+
+            Args:
+                event: The state change event that triggered this callback, or None on init.
+                updates: List of template results that have changed.
+
+            """
             for data in updates:
                 template = data.template
                 result = data.result
 
                 if template == self._state_template:
-                    self._state_template_result = (
-                        None if isinstance(result, TemplateError) else result
-                    )
+                    self._state_template_result = None if isinstance(result, TemplateError) else result
                 if template == self._active_child_template:
-                    self._active_child_template_result = (
-                        None if isinstance(result, TemplateError) else result
-                    )
+                    self._active_child_template_result = None if isinstance(result, TemplateError) else result
 
             if event:
                 self.async_set_context(event.context)
@@ -262,9 +280,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):
                 track_templates,
                 _async_on_template_update,
             )
-            self.hass.bus.async_listen_once(
-                EVENT_HOMEASSISTANT_START, callback(lambda _: result.async_refresh())
-            )
+            self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, callback(lambda _: result.async_refresh()))
 
             self.async_on_remove(result.async_remove)
 
@@ -272,14 +288,23 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):
         for entity in self._attrs.values():
             depend.append(entity[0])
 
-        self.async_on_remove(
-            async_track_state_change_event(
-                self.hass, list(set(depend)), _async_on_dependency_update
-            )
-        )
+        self.async_on_remove(async_track_state_change_event(self.hass, list(set(depend)), _async_on_dependency_update))
 
-    def _entity_lkp(self, entity_id, state_attr=None):
-        """Look up an entity state."""
+    def _entity_lkp(self, entity_id: str, state_attr: str | None = None) -> Any:
+        """Look up an entity state or attribute value.
+
+        Supports multiple entity IDs separated by '-'. Iterates through each
+        and returns the first non-None value found.
+
+        Args:
+            entity_id: A single entity ID or multiple IDs joined by '-'.
+            state_attr: Optional attribute name to retrieve instead of the state.
+
+        Returns:
+            The state string or attribute value of the first matching entity,
+            or None if no match is found.
+
+        """
 
         entities_id = entity_id.split("-")
 
@@ -299,24 +324,59 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):
 
         return None
 
-    def _override_or_child_attr(self, attr_name):
-        """Return either the override or the active child for attr_name."""
+    def _override_or_child_attr(self, attr_name: str) -> Any:
+        """Return either the override or the active child for attr_name.
+
+        If an attribute override is defined in the configuration for the given
+        attribute name, the overridden entity value is returned. Otherwise, the
+        attribute is retrieved from the active child entity.
+
+        Args:
+            attr_name: The name of the attribute to retrieve.
+
+        Returns:
+            The attribute value from the override entity or from the active child,
+            or None if neither is available.
+
+        """
         if attr_name in self._attrs:
-            return self._entity_lkp(
-                self._attrs[attr_name][0], self._attrs[attr_name][1]
-            )
+            return self._entity_lkp(self._attrs[attr_name][0], self._attrs[attr_name][1])
 
         return self._child_attr(attr_name)
 
-    def _child_attr(self, attr_name):
-        """Return the active child's attributes."""
+    def _child_attr(self, attr_name: str) -> Any:
+        """Return the active child's attributes.
+
+        Args:
+            attr_name: The name of the attribute to retrieve from the active child.
+
+        Returns:
+            The attribute value from the active child entity, or None if there
+            is no active child.
+
+        """
         active_child = self._child_state
         return active_child.attributes.get(attr_name) if active_child else None
 
     async def _async_call_service(
-        self, service_name, service_data=None, allow_override=False
-    ):
-        """Call either a specified or active child's service."""
+        self,
+        service_name: str,
+        service_data: dict[str, Any] | None = None,
+        allow_override: bool = False,
+    ) -> None:
+        """Call either a specified or active child's service.
+
+        If allow_override is True and a command override is defined for the
+        given service, the override is called instead of delegating to the
+        active child.
+
+        Args:
+            service_name: The name of the media player service to call.
+            service_data: Optional dictionary of service call parameters.
+            allow_override: Whether to check for a command override before
+                falling back to the active child.
+
+        """
         if service_data is None:
             service_data = {}
 
@@ -345,30 +405,42 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):
         )
 
     @property
-    def master_state(self):
-        """Return the master state for entity or None."""
+    def master_state(self) -> Any:
+        """Return the master state for entity or None.
+
+        Returns:
+            The result of the state template if defined, the state from the
+            configured state attribute entity if present, or None otherwise.
+
+        """
         if self._state_template is not None:
             return self._state_template_result
         if CONF_STATE in self._attrs:
-            master_state = self._entity_lkp(
-                self._attrs[CONF_STATE][0], self._attrs[CONF_STATE][1]
-            )
-            return master_state if master_state else MediaPlayerState.OFF
+            master_state = self._entity_lkp(self._attrs[CONF_STATE][0], self._attrs[CONF_STATE][1])
+            return master_state or MediaPlayerState.OFF
 
         return None
 
     @property
-    def assumed_state(self) -> bool:
-        """Return True if unable to access real state of the entity."""
+    def assumed_state(self) -> bool | None:
+        """Return True if unable to access real state of the entity.
+
+        Returns:
+            The assumed state value from the active child, or None if no child is active.
+
+        """
         return self._child_attr(ATTR_ASSUMED_STATE)
 
     @property
-    def state(self):
+    def state(self) -> MediaPlayerState | str | None:
         """Return the current state of media player.
 
-        Off if master state is off
-        else Status of first active child
-        else master state or off
+        Off if master state is off, else status of first active child,
+        else master state or off.
+
+        Returns:
+            The current MediaPlayerState, or None if undetermined.
+
         """
         master_state = self.master_state  # avoid multiple lookups
         if (master_state == MediaPlayerState.OFF) or (self._state_template is not None):
@@ -377,147 +449,276 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):
         if active_child := self._child_state:
             return active_child.state
 
-        return master_state if master_state else MediaPlayerState.OFF
+        return master_state or MediaPlayerState.OFF
 
     @property
-    def volume_level(self):
-        """Volume level of entity specified in attributes or active child."""
+    def volume_level(self) -> float | None:
+        """Volume level of entity specified in attributes or active child.
+
+        Returns:
+            The volume level as a float between 0 and 1, or None if unavailable
+            or not parseable.
+
+        """
         try:
             return float(self._override_or_child_attr(ATTR_MEDIA_VOLUME_LEVEL))
         except (TypeError, ValueError):
             return None
 
     @property
-    def is_volume_muted(self):
-        """Boolean if volume is muted."""
+    def is_volume_muted(self) -> bool:
+        """Boolean if volume is muted.
+
+        Returns:
+            True if the volume is muted, False otherwise.
+
+        """
         return self._override_or_child_attr(ATTR_MEDIA_VOLUME_MUTED) in [True, STATE_ON]
 
     @property
-    def media_content_id(self):
-        """Return the content ID of current playing media."""
+    def media_content_id(self) -> str | None:
+        """Return the content ID of current playing media.
+
+        Returns:
+            The media content ID string, or None if unavailable.
+
+        """
         return self._child_attr(ATTR_MEDIA_CONTENT_ID)
 
     @property
-    def media_content_type(self):
-        """Return the content type of current playing media."""
+    def media_content_type(self) -> str | None:
+        """Return the content type of current playing media.
+
+        Returns:
+            The media content type string, or None if unavailable.
+
+        """
         return self._override_or_child_attr(ATTR_MEDIA_CONTENT_TYPE)
 
     @property
-    def media_duration(self):
-        """Return the duration of current playing media in seconds."""
+    def media_duration(self) -> float | None:
+        """Return the duration of current playing media in seconds.
+
+        Returns:
+            The media duration as a number, or None if unavailable.
+
+        """
         return self._override_or_child_attr(ATTR_MEDIA_DURATION)
 
     @property
-    def media_image_url(self):
-        """Image url of current playing media."""
+    def media_image_url(self) -> str | None:
+        """Image url of current playing media.
+
+        Returns:
+            The URL string of the media image, or None if unavailable.
+
+        """
         return self._override_or_child_attr(ATTR_ENTITY_PICTURE)
 
     @property
-    def entity_picture(self):
+    def entity_picture(self) -> str | None:
         """Return image of the media playing.
 
         The custom universal media player doesn't use the parent class logic, since
         the url is coming from child entity pictures which have already been
         sent through the API proxy.
+
+        Returns:
+            The URL string of the entity picture, or None if unavailable.
+
         """
         return self.media_image_url
 
     @property
-    def media_title(self):
-        """Title of current playing media."""
+    def media_title(self) -> str | None:
+        """Title of current playing media.
+
+        Returns:
+            The media title string, or None if unavailable.
+
+        """
         return self._override_or_child_attr(ATTR_MEDIA_TITLE)
 
     @property
-    def media_artist(self):
-        """Artist of current playing media (Music track only)."""
+    def media_artist(self) -> str | None:
+        """Artist of current playing media (Music track only).
+
+        Returns:
+            The artist name string, or None if unavailable.
+
+        """
         return self._override_or_child_attr(ATTR_MEDIA_ARTIST)
 
     @property
-    def media_album_name(self):
-        """Album name of current playing media (Music track only)."""
+    def media_album_name(self) -> str | None:
+        """Album name of current playing media (Music track only).
+
+        Returns:
+            The album name string, or None if unavailable.
+
+        """
         return self._override_or_child_attr(ATTR_MEDIA_ALBUM_NAME)
 
     @property
-    def media_album_artist(self):
-        """Album artist of current playing media (Music track only)."""
+    def media_album_artist(self) -> str | None:
+        """Album artist of current playing media (Music track only).
+
+        Returns:
+            The album artist name string, or None if unavailable.
+
+        """
         return self._override_or_child_attr(ATTR_MEDIA_ALBUM_ARTIST)
 
     @property
-    def media_track(self):
-        """Track number of current playing media (Music track only)."""
+    def media_track(self) -> str | None:
+        """Track number of current playing media (Music track only).
+
+        Returns:
+            The track number, or None if unavailable.
+
+        """
         return self._override_or_child_attr(ATTR_MEDIA_TRACK)
 
     @property
-    def media_series_title(self):
-        """Return the title of the series of current playing media (TV)."""
+    def media_series_title(self) -> str | None:
+        """Return the title of the series of current playing media (TV).
+
+        Returns:
+            The series title string, or None if unavailable.
+
+        """
         return self._override_or_child_attr(ATTR_MEDIA_SERIES_TITLE)
 
     @property
-    def media_season(self):
-        """Season of current playing media (TV Show only)."""
+    def media_season(self) -> str | None:
+        """Season of current playing media (TV Show only).
+
+        Returns:
+            The season identifier, or None if unavailable.
+
+        """
         return self._override_or_child_attr(ATTR_MEDIA_SEASON)
 
     @property
-    def media_episode(self):
-        """Episode of current playing media (TV Show only)."""
+    def media_episode(self) -> str | None:
+        """Episode of current playing media (TV Show only).
+
+        Returns:
+            The episode identifier, or None if unavailable.
+
+        """
         return self._override_or_child_attr(ATTR_MEDIA_EPISODE)
 
     @property
-    def media_channel(self):
-        """Channel currently playing."""
+    def media_channel(self) -> str | None:
+        """Channel currently playing.
+
+        Returns:
+            The channel name string, or None if unavailable.
+
+        """
         return self._override_or_child_attr(ATTR_MEDIA_CHANNEL)
 
     @property
-    def media_playlist(self):
-        """Title of Playlist currently playing."""
+    def media_playlist(self) -> str | None:
+        """Title of Playlist currently playing.
+
+        Returns:
+            The playlist title string, or None if unavailable.
+
+        """
         return self._override_or_child_attr(ATTR_MEDIA_PLAYLIST)
 
     @property
-    def app_id(self):
-        """ID of the current running app."""
+    def app_id(self) -> str | None:
+        """ID of the current running app.
+
+        Returns:
+            The application ID string, or None if unavailable.
+
+        """
         return self._override_or_child_attr(ATTR_APP_ID)
 
     @property
-    def app_name(self):
-        """Name of the current running app."""
+    def app_name(self) -> str | None:
+        """Name of the current running app.
+
+        Returns:
+            The application name string, or None if unavailable.
+
+        """
         return self._override_or_child_attr(ATTR_APP_NAME)
 
     @property
-    def sound_mode(self):
-        """Return the current sound mode of the device."""
+    def sound_mode(self) -> str | None:
+        """Return the current sound mode of the device.
+
+        Returns:
+            The current sound mode string, or None if unavailable.
+
+        """
         return self._override_or_child_attr(ATTR_SOUND_MODE)
 
     @property
-    def sound_mode_list(self):
-        """List of available sound modes."""
+    def sound_mode_list(self) -> list[str] | None:
+        """List of available sound modes.
+
+        Returns:
+            A list of sound mode strings, or None if unavailable.
+
+        """
         return self._override_or_child_attr(ATTR_SOUND_MODE_LIST)
 
     @property
-    def source(self):
-        """Return the current input source of the device."""
+    def source(self) -> str | None:
+        """Return the current input source of the device.
+
+        Returns:
+            The current input source string, or None if unavailable.
+
+        """
         return self._override_or_child_attr(ATTR_INPUT_SOURCE)
 
     @property
-    def source_list(self):
-        """List of available input sources."""
+    def source_list(self) -> list[str] | None:
+        """List of available input sources.
+
+        Returns:
+            A list of input source strings, or None if unavailable.
+
+        """
         return self._override_or_child_attr(ATTR_INPUT_SOURCE_LIST)
 
     @property
-    def repeat(self):
-        """Boolean if repeating is enabled."""
+    def repeat(self) -> RepeatMode | None:
+        """Indicate if repeating is enabled.
+
+        Returns:
+            The current repeat mode value, or None if unavailable.
+
+        """
         return self._override_or_child_attr(ATTR_MEDIA_REPEAT)
 
     @property
-    def shuffle(self):
-        """Boolean if shuffling is enabled."""
+    def shuffle(self) -> bool | None:
+        """Boolean if shuffling is enabled.
+
+        Returns:
+            True if shuffle is enabled, False if disabled, or None if unavailable.
+
+        """
         return self._override_or_child_attr(ATTR_MEDIA_SHUFFLE)
 
     @property
-    def supported_features(self) -> MediaPlayerEntityFeature:
-        """Flag media player features that are supported."""
-        flags: MediaPlayerEntityFeature = self._child_attr(
-            ATTR_SUPPORTED_FEATURES
-        ) or MediaPlayerEntityFeature(0)
+    def supported_features(self) -> MediaPlayerEntityFeature:  # pylint: disable=too-many-branches
+        """Flag media player features that are supported.
+
+        Returns:
+            A MediaPlayerEntityFeature bitmask representing all supported features,
+            combining child entity capabilities with any configured command overrides.
+
+        """
+        flags: MediaPlayerEntityFeature = self._child_attr(ATTR_SUPPORTED_FEATURES) or MediaPlayerEntityFeature(0)
 
         if SERVICE_TURN_ON in self._cmds:
             flags |= MediaPlayerEntityFeature.TURN_ON
@@ -548,10 +749,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):
         if SERVICE_VOLUME_MUTE in self._cmds and ATTR_MEDIA_VOLUME_MUTED in self._attrs:
             flags |= MediaPlayerEntityFeature.VOLUME_MUTE
 
-        if (
-            SERVICE_SELECT_SOURCE in self._cmds
-            and ATTR_INPUT_SOURCE_LIST in self._attrs
-        ):
+        if SERVICE_SELECT_SOURCE in self._cmds and ATTR_INPUT_SOURCE_LIST in self._attrs:
             flags |= MediaPlayerEntityFeature.SELECT_SOURCE
 
         if SERVICE_PLAY_MEDIA in self._cmds:
@@ -569,37 +767,55 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):
         if SERVICE_REPEAT_SET in self._cmds and ATTR_MEDIA_REPEAT in self._attrs:
             flags |= MediaPlayerEntityFeature.REPEAT_SET
 
-        if (
-            SERVICE_SELECT_SOUND_MODE in self._cmds
-            and ATTR_SOUND_MODE_LIST in self._attrs
-        ):
+        if SERVICE_SELECT_SOUND_MODE in self._cmds and ATTR_SOUND_MODE_LIST in self._attrs:
             flags |= MediaPlayerEntityFeature.SELECT_SOUND_MODE
 
         return flags
 
     @property
-    def extra_state_attributes(self):
-        """Return device specific state attributes."""
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return device specific state attributes.
+
+        Returns:
+            A dictionary containing the active child entity ID under the
+            ATTR_ACTIVE_CHILD key, or an empty dictionary if no child is active.
+
+        """
         active_child = self._child_state
         return {ATTR_ACTIVE_CHILD: active_child.entity_id} if active_child else {}
 
     @property
-    def media_position(self):
-        """Position of current playing media in seconds."""
+    def media_position(self) -> float | None:
+        """Position of current playing media in seconds.
+
+        Returns:
+            The current media position as a number, or None if unavailable.
+
+        """
         return self._override_or_child_attr(ATTR_MEDIA_POSITION)
 
     @property
-    def media_position_updated_at(self):
-        """When was the position of the current playing media valid."""
+    def media_position_updated_at(self) -> datetime | None:
+        """When was the position of the current playing media valid.
+
+        Returns:
+            A datetime representing when the media position was last updated,
+            or None if unavailable.
+
+        """
         return self._override_or_child_attr(ATTR_MEDIA_POSITION_UPDATED_AT)
 
     @property
-    def state_attributes(self) -> dict[str, Any]:
-        """Return the state attributes."""
-        state_attr: dict[str, Any] = {}
+    def state_attributes(self) -> dict[str, Any]:  # pylint: disable=overridden-final-method
+        """Return the state attributes.
 
-        # if self.support_grouping:
-        #     state_attr[ATTR_GROUP_MEMBERS] = self.group_members
+        Returns:
+            A dictionary of state attributes for the media player. Returns an
+            empty dictionary when the player is off. Includes all standard media
+            player attributes and the local entity picture if applicable.
+
+        """
+        state_attr: dict[str, Any] = {}
 
         if self.state == MediaPlayerState.OFF:
             return state_attr
@@ -608,10 +824,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):
             if (value := getattr(self, attr)) is not None:
                 state_attr[attr] = value
 
-        if (
-            ATTR_ENTITY_PICTURE_LOCAL not in state_attr
-            or "https:" not in state_attr[ATTR_ENTITY_PICTURE_LOCAL]
-        ):
+        if ATTR_ENTITY_PICTURE_LOCAL not in state_attr or "https:" not in state_attr[ATTR_ENTITY_PICTURE_LOCAL]:
             state_attr[ATTR_ENTITY_PICTURE_LOCAL] = self.media_image_local
 
         return state_attr
@@ -625,12 +838,22 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):
         await self._async_call_service(SERVICE_TURN_OFF, allow_override=True)
 
     async def async_mute_volume(self, mute: bool) -> None:
-        """Mute the volume."""
+        """Mute the volume.
+
+        Args:
+            mute: True to mute, False to unmute.
+
+        """
         data = {ATTR_MEDIA_VOLUME_MUTED: mute}
         await self._async_call_service(SERVICE_VOLUME_MUTE, data, allow_override=True)
 
     async def async_set_volume_level(self, volume: float) -> None:
-        """Set volume level, range 0..1."""
+        """Set volume level, range 0..1.
+
+        Args:
+            volume: The desired volume level as a float between 0 and 1.
+
+        """
         data = {ATTR_MEDIA_VOLUME_LEVEL: volume}
         await self._async_call_service(SERVICE_VOLUME_SET, data, allow_override=True)
 
@@ -648,23 +871,31 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):
 
     async def async_media_previous_track(self) -> None:
         """Send previous track command."""
-        await self._async_call_service(
-            SERVICE_MEDIA_PREVIOUS_TRACK, allow_override=True
-        )
+        await self._async_call_service(SERVICE_MEDIA_PREVIOUS_TRACK, allow_override=True)
 
     async def async_media_next_track(self) -> None:
         """Send next track command."""
         await self._async_call_service(SERVICE_MEDIA_NEXT_TRACK, allow_override=True)
 
     async def async_media_seek(self, position: float) -> None:
-        """Send seek command."""
+        """Send seek command.
+
+        Args:
+            position: The target position in seconds to seek to.
+
+        """
         data = {ATTR_MEDIA_SEEK_POSITION: position}
         await self._async_call_service(SERVICE_MEDIA_SEEK, data)
 
-    async def async_play_media(
-        self, media_type: MediaType | str, media_id: str, **kwargs: Any
-    ) -> None:
-        """Play a piece of media."""
+    async def async_play_media(self, media_type: MediaType | str, media_id: str, **kwargs: Any) -> None:
+        """Play a piece of media.
+
+        Args:
+            media_type: The type of media to play (e.g. music, video).
+            media_id: The ID or URL of the media to play.
+            **kwargs: Additional optional parameters passed to the service.
+
+        """
         data = {ATTR_MEDIA_CONTENT_TYPE: media_type, ATTR_MEDIA_CONTENT_ID: media_id}
         await self._async_call_service(SERVICE_PLAY_MEDIA, data, allow_override=True)
 
@@ -681,28 +912,46 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):
         await self._async_call_service(SERVICE_MEDIA_PLAY_PAUSE, allow_override=True)
 
     async def async_select_sound_mode(self, sound_mode: str) -> None:
-        """Select sound mode."""
+        """Select sound mode.
+
+        Args:
+            sound_mode: The sound mode to select.
+
+        """
         data = {ATTR_SOUND_MODE: sound_mode}
-        await self._async_call_service(
-            SERVICE_SELECT_SOUND_MODE, data, allow_override=True
-        )
+        await self._async_call_service(SERVICE_SELECT_SOUND_MODE, data, allow_override=True)
 
     async def async_select_source(self, source: str) -> None:
-        """Set the input source."""
+        """Set the input source.
+
+        Args:
+            source: The input source to select.
+
+        """
         data = {ATTR_INPUT_SOURCE: source}
         await self._async_call_service(SERVICE_SELECT_SOURCE, data, allow_override=True)
 
     async def async_clear_playlist(self) -> None:
-        """Clear players playlist."""
+        """Clear player playlist."""
         await self._async_call_service(SERVICE_CLEAR_PLAYLIST, allow_override=True)
 
     async def async_set_shuffle(self, shuffle: bool) -> None:
-        """Enable/disable shuffling."""
+        """Enable/disable shuffling.
+
+        Args:
+            shuffle: True to enable shuffle, False to disable.
+
+        """
         data = {ATTR_MEDIA_SHUFFLE: shuffle}
         await self._async_call_service(SERVICE_SHUFFLE_SET, data, allow_override=True)
 
     async def async_set_repeat(self, repeat: RepeatMode) -> None:
-        """Set repeat mode."""
+        """Set repeat mode.
+
+        Args:
+            repeat: The repeat mode to set.
+
+        """
         data = {ATTR_MEDIA_REPEAT: repeat}
         await self._async_call_service(SERVICE_REPEAT_SET, data, allow_override=True)
 
@@ -719,20 +968,40 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):
         media_content_type: MediaType | str | None = None,
         media_content_id: str | None = None,
     ) -> BrowseMedia:
-        """Return a BrowseMedia instance."""
+        """Return a BrowseMedia instance.
+
+        Delegates to the configured browse media entity if set, or falls back
+        to the active child entity.
+
+        Args:
+            media_content_type: Optional media content type to browse.
+            media_content_id: Optional media content ID to browse from.
+
+        Returns:
+            A BrowseMedia instance from the target entity.
+
+        Raises:
+            NotImplementedError: If no valid target entity is found.
+
+        """
         entity_id = self._browse_media_entity
         if not entity_id and self._child_state:
             entity_id = self._child_state.entity_id
-        component: EntityComponent[MediaPlayerEntity] = self.hass.data[
-            MEDIA_PLAYER_DOMAIN
-        ]
+        component: EntityComponent[MediaPlayerEntity] = self.hass.data[MEDIA_PLAYER_DOMAIN]
         if entity_id and (entity := component.get_entity(entity_id)):
             return await entity.async_browse_media(media_content_type, media_content_id)
         raise NotImplementedError
 
     @callback
     def _async_update(self) -> None:
-        """Update state in HA."""
+        """Update state in HA.
+
+        Resolves the active child entity by selecting the child with the highest
+        priority state. If an active child template result is available, it is
+        used directly. Otherwise, iterates over configured children and picks the
+        one with the most active state according to STATES_ORDER_LOOKUP.
+
+        """
         if self._active_child_template_result:
             self._child_state = self.hass.states.get(self._active_child_template_result)
             return
@@ -742,9 +1011,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):
                 child_state_order := STATES_ORDER_LOOKUP.get(child_state.state, 0)
             ) >= STATES_ORDER_IDLE:
                 if self._child_state:
-                    if child_state_order > STATES_ORDER_LOOKUP.get(
-                        self._child_state.state, 0
-                    ):
+                    if child_state_order > STATES_ORDER_LOOKUP.get(self._child_state.state, 0):
                         self._child_state = child_state
                 else:
                     self._child_state = child_state

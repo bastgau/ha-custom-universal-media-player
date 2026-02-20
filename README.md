@@ -53,62 +53,63 @@ The child media player is a [Mini Google Home](https://www.home-assistant.io/int
 In this example, most actions are overridden by the child media player (_Google Home_). Only the specific _Music Assistant media player_ actions are *not* overridden.
 
 ```yaml
-- platform: custom_universal_media_player
-  name: "Google Home Bureau"
-  unique_id: custom_media_player_bureau
-  device_class: speaker
-  children:
-    - media_player.mass_bureau
-    - media_player.google_home_bureau
-  commands:
-    media_play:
-      action: media_player.media_play
-      target:
-        entity_id: media_player.mass_bureau
-    media_play_pause:
-      action: media_player.media_play_pause
-      target:
-        entity_id: media_player.google_home_bureau
-    turn_on:
-      action: media_player.turn_on
-      target:
-        entity_id: media_player.google_home_bureau
-    turn_off:
-      action: media_player.turn_off
-      target:
-        entity_id: media_player.google_home_bureau
-    volume_up:
-      action: media_player.volume_up
-      target:
-        entity_id: media_player.google_home_bureau
-    volume_down:
-      action: media_player.volume_down
-      target:
-        entity_id: media_player.google_home_bureau
-    media_pause:
-      action: media_player.media_pause
-      target:
-        entity_id: media_player.google_home_bureau
-    media_previous_track:
-      action: media_player.media_previous_track
-      target:
-        entity_id: media_player.mass_bureau
-    media_next_track:
-      action: media_player.media_next_track
-      target:
-        entity_id: media_player.mass_bureau
-  attributes:
-    entity_picture: media_player.google_home_bureau|entity_picture
-    is_volume_muted: media_player.google_home_bureau|is_volume_muted
-    media_album_artist: media_player.google_home_bureau|media_album_artist
-    media_album_name: media_player.google_home_bureau|media_album_name
-    media_artist: media_player.google_home_bureau|media_artist
-    media_image_url: media_player.google_home_bureau|entity_picture
-    media_title: media_player.google_home_bureau|media_title
-    source_list: media_player.google_home_bureau|source_list
-    source: media_player.google_home_bureau|source
-    state: media_player.google_home_bureau
-    volume_level: media_player.google_home_bureau|volume_level
+media_player:
+  - platform: custom_universal_media_player
+    name: "Google Home Bureau"
+    unique_id: custom_media_player_bureau
+    device_class: speaker
+    children:
+      - media_player.mass_bureau
+      - media_player.google_home_bureau
+    commands:
+      media_play:
+        action: media_player.media_play
+        target:
+          entity_id: media_player.mass_bureau
+      media_play_pause:
+        action: media_player.media_play_pause
+        target:
+          entity_id: media_player.google_home_bureau
+      turn_on:
+        action: media_player.turn_on
+        target:
+          entity_id: media_player.google_home_bureau
+      turn_off:
+        action: media_player.turn_off
+        target:
+          entity_id: media_player.google_home_bureau
+      volume_up:
+        action: media_player.volume_up
+        target:
+          entity_id: media_player.google_home_bureau
+      volume_down:
+        action: media_player.volume_down
+        target:
+          entity_id: media_player.google_home_bureau
+      media_pause:
+        action: media_player.media_pause
+        target:
+          entity_id: media_player.google_home_bureau
+      media_previous_track:
+        action: media_player.media_previous_track
+        target:
+          entity_id: media_player.mass_bureau
+      media_next_track:
+        action: media_player.media_next_track
+        target:
+          entity_id: media_player.mass_bureau
+    attributes:
+      entity_picture: media_player.google_home_bureau|entity_picture
+      is_volume_muted: media_player.google_home_bureau|is_volume_muted
+      media_album_artist: media_player.google_home_bureau|media_album_artist
+      media_album_name: media_player.google_home_bureau|media_album_name
+      media_artist: media_player.google_home_bureau|media_artist
+      media_image_url: media_player.google_home_bureau|entity_picture
+      media_title: media_player.google_home_bureau|media_title
+      source_list: media_player.google_home_bureau|source_list
+      source: media_player.google_home_bureau|source
+      state: media_player.google_home_bureau
+      volume_level: media_player.google_home_bureau|volume_level
 ```
 
 Enjoy!
