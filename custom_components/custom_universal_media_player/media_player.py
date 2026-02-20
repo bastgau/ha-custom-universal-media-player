@@ -150,8 +150,8 @@ STATES_ORDER = [
 STATES_ORDER_LOOKUP = {state: idx for idx, state in enumerate(STATES_ORDER)}
 STATES_ORDER_IDLE = STATES_ORDER_LOOKUP[MediaPlayerState.IDLE]
 
-ATTRS_SCHEMA: Any = cv.schema_with_slug_keys(cv.string)  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType]
-CMD_SCHEMA: Any = cv.schema_with_slug_keys(cv.SERVICE_SCHEMA)  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType]
+ATTRS_SCHEMA: Any = cv.schema_with_slug_keys(cv.string)  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType]  # pylint: disable=invalid-name
+CMD_SCHEMA: Any = cv.schema_with_slug_keys(cv.SERVICE_SCHEMA)  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType] # pylint: disable=invalid-name
 
 PLATFORM_SCHEMA = MEDIA_PLAYER_PLATFORM_SCHEMA.extend(  # pyright: ignore[reportUnknownMemberType]
     {
