@@ -8,6 +8,11 @@ from typing import TYPE_CHECKING, Any
 import voluptuous as vol
 
 from homeassistant.components.media_player import (
+    DEVICE_CLASSES_SCHEMA,
+    PLATFORM_SCHEMA as MEDIA_PLAYER_PLATFORM_SCHEMA,
+    MediaPlayerEntity,
+)
+from homeassistant.components.media_player.const import (
     ATTR_APP_ID,
     ATTR_APP_NAME,
     ATTR_INPUT_SOURCE,
@@ -34,14 +39,11 @@ from homeassistant.components.media_player import (
     ATTR_MEDIA_VOLUME_MUTED,
     ATTR_SOUND_MODE,
     ATTR_SOUND_MODE_LIST,
-    DEVICE_CLASSES_SCHEMA,
     DOMAIN as MEDIA_PLAYER_DOMAIN,
-    PLATFORM_SCHEMA as MEDIA_PLAYER_PLATFORM_SCHEMA,
     SERVICE_CLEAR_PLAYLIST,
     SERVICE_PLAY_MEDIA,
     SERVICE_SELECT_SOUND_MODE,
     SERVICE_SELECT_SOURCE,
-    MediaPlayerEntity,
     MediaPlayerEntityFeature,
     MediaPlayerState,
     MediaType,
@@ -148,13 +150,13 @@ STATES_ORDER = [
 STATES_ORDER_LOOKUP = {state: idx for idx, state in enumerate(STATES_ORDER)}
 STATES_ORDER_IDLE = STATES_ORDER_LOOKUP[MediaPlayerState.IDLE]
 
-ATTRS_SCHEMA = cv.schema_with_slug_keys(cv.string)
-CMD_SCHEMA = cv.schema_with_slug_keys(cv.SERVICE_SCHEMA)
+ATTRS_SCHEMA: Any = cv.schema_with_slug_keys(cv.string)  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType]
+CMD_SCHEMA: Any = cv.schema_with_slug_keys(cv.SERVICE_SCHEMA)  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType]
 
-PLATFORM_SCHEMA = MEDIA_PLAYER_PLATFORM_SCHEMA.extend(
+PLATFORM_SCHEMA = MEDIA_PLAYER_PLATFORM_SCHEMA.extend(  # pyright: ignore[reportUnknownMemberType]
     {
         vol.Required(CONF_NAME): cv.string,
-        vol.Optional(CONF_CHILDREN, default=[]): cv.entity_ids,
+        vol.Optional(CONF_CHILDREN, default=[]): cv.entity_ids,  # pyright: ignore[reportUnknownMemberType]
         vol.Optional(CONF_COMMANDS, default={}): CMD_SCHEMA,
         vol.Optional(CONF_ATTRS, default={}): vol.Or(cv.ensure_list(ATTRS_SCHEMA), ATTRS_SCHEMA),
         vol.Optional(CONF_BROWSE_MEDIA_ENTITY): cv.string,
@@ -207,13 +209,13 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """
         self.hass = hass
         self._attr_name = config.get(CONF_NAME)
-        self._children = config.get(CONF_CHILDREN)
+        self._children = config.get(CONF_CHILDREN, [])
         self._active_child_template = config.get(CONF_ACTIVE_CHILD_TEMPLATE)
         self._active_child_template_result = None
-        self._cmds = config.get(CONF_COMMANDS)
-        self._attrs = {}
-        for key, val in config.get(CONF_ATTRS).items():
-            attr = list(map(str.strip, val.split("|", 1)))
+        self._cmds = config.get(CONF_COMMANDS, {})
+        self._attrs: dict[str, Any] = {}
+        for key, val in config.get(CONF_ATTRS, {}).items():
+            attr: list[str | None] = list(map(str.strip, val.split("|", 1)))
             if len(attr) == 1:
                 attr.append(None)
             self._attrs[key] = attr
@@ -284,7 +286,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
 
             self.async_on_remove(result.async_remove)
 
-        depend = copy(self._children)
+        depend: Any = copy(self._children)
         for entity in self._attrs.values():
             depend.append(entity[0])
 
@@ -422,7 +424,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return None
 
     @property
-    def assumed_state(self) -> bool | None:
+    def assumed_state(self) -> bool | None:  # pyright: ignore[reportIncompatibleVariableOverride]
         """Return True if unable to access real state of the entity.
 
         Returns:
@@ -432,7 +434,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._child_attr(ATTR_ASSUMED_STATE)
 
     @property
-    def state(self) -> MediaPlayerState | str | None:
+    def state(self) -> MediaPlayerState | str | None:  # pyright: ignore[reportIncompatibleVariableOverride]
         """Return the current state of media player.
 
         Off if master state is off, else status of first active child,
@@ -452,7 +454,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return master_state or MediaPlayerState.OFF
 
     @property
-    def volume_level(self) -> float | None:
+    def volume_level(self) -> float | None:  # pyright: ignore[reportIncompatibleVariableOverride]
         """Volume level of entity specified in attributes or active child.
 
         Returns:
@@ -466,7 +468,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
             return None
 
     @property
-    def is_volume_muted(self) -> bool:
+    def is_volume_muted(self) -> bool:  # pyright: ignore[reportIncompatibleVariableOverride]
         """Boolean if volume is muted.
 
         Returns:
@@ -476,7 +478,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_MEDIA_VOLUME_MUTED) in [True, STATE_ON]
 
     @property
-    def media_content_id(self) -> str | None:
+    def media_content_id(self) -> str | None:  # pyright: ignore[reportIncompatibleVariableOverride]
         """Return the content ID of current playing media.
 
         Returns:
@@ -486,7 +488,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._child_attr(ATTR_MEDIA_CONTENT_ID)
 
     @property
-    def media_content_type(self) -> str | None:
+    def media_content_type(self) -> str | None:  # pyright: ignore[reportIncompatibleVariableOverride]
         """Return the content type of current playing media.
 
         Returns:
@@ -496,7 +498,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_MEDIA_CONTENT_TYPE)
 
     @property
-    def media_duration(self) -> float | None:
+    def media_duration(self) -> float | None:  # pyright: ignore[reportIncompatibleVariableOverride]
         """Return the duration of current playing media in seconds.
 
         Returns:
@@ -506,7 +508,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_MEDIA_DURATION)
 
     @property
-    def media_image_url(self) -> str | None:
+    def media_image_url(self) -> str | None:  # pyright: ignore[reportIncompatibleVariableOverride]
         """Image url of current playing media.
 
         Returns:
@@ -530,7 +532,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self.media_image_url
 
     @property
-    def media_title(self) -> str | None:
+    def media_title(self) -> str | None:  # pyright: ignore[reportIncompatibleVariableOverride]
         """Title of current playing media.
 
         Returns:
@@ -540,7 +542,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_MEDIA_TITLE)
 
     @property
-    def media_artist(self) -> str | None:
+    def media_artist(self) -> str | None:  # pyright: ignore[reportIncompatibleVariableOverride]
         """Artist of current playing media (Music track only).
 
         Returns:
@@ -550,7 +552,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_MEDIA_ARTIST)
 
     @property
-    def media_album_name(self) -> str | None:
+    def media_album_name(self) -> str | None:  # pyright: ignore[reportIncompatibleVariableOverride]
         """Album name of current playing media (Music track only).
 
         Returns:
@@ -560,7 +562,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_MEDIA_ALBUM_NAME)
 
     @property
-    def media_album_artist(self) -> str | None:
+    def media_album_artist(self) -> str | None:  # pyright: ignore[reportIncompatibleVariableOverride]
         """Album artist of current playing media (Music track only).
 
         Returns:
@@ -570,7 +572,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_MEDIA_ALBUM_ARTIST)
 
     @property
-    def media_track(self) -> str | None:
+    def media_track(self) -> str | None:  # pyright: ignore[reportIncompatibleVariableOverride]
         """Track number of current playing media (Music track only).
 
         Returns:
@@ -580,7 +582,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_MEDIA_TRACK)
 
     @property
-    def media_series_title(self) -> str | None:
+    def media_series_title(self) -> str | None:  # pyright: ignore[reportIncompatibleVariableOverride]
         """Return the title of the series of current playing media (TV).
 
         Returns:
@@ -590,7 +592,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_MEDIA_SERIES_TITLE)
 
     @property
-    def media_season(self) -> str | None:
+    def media_season(self) -> str | None:  # pyright: ignore[reportIncompatibleVariableOverride]
         """Season of current playing media (TV Show only).
 
         Returns:
@@ -600,7 +602,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_MEDIA_SEASON)
 
     @property
-    def media_episode(self) -> str | None:
+    def media_episode(self) -> str | None:  # pyright: ignore[reportIncompatibleVariableOverride]
         """Episode of current playing media (TV Show only).
 
         Returns:
@@ -610,7 +612,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_MEDIA_EPISODE)
 
     @property
-    def media_channel(self) -> str | None:
+    def media_channel(self) -> str | None:  # pyright: ignore[reportIncompatibleVariableOverride]
         """Channel currently playing.
 
         Returns:
@@ -620,7 +622,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_MEDIA_CHANNEL)
 
     @property
-    def media_playlist(self) -> str | None:
+    def media_playlist(self) -> str | None:  # pyright: ignore[reportIncompatibleVariableOverride]
         """Title of Playlist currently playing.
 
         Returns:
@@ -630,7 +632,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_MEDIA_PLAYLIST)
 
     @property
-    def app_id(self) -> str | None:
+    def app_id(self) -> str | None:  # pyright: ignore[reportIncompatibleVariableOverride]
         """ID of the current running app.
 
         Returns:
@@ -640,7 +642,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_APP_ID)
 
     @property
-    def app_name(self) -> str | None:
+    def app_name(self) -> str | None:  # pyright: ignore[reportIncompatibleVariableOverride]
         """Name of the current running app.
 
         Returns:
@@ -650,7 +652,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_APP_NAME)
 
     @property
-    def sound_mode(self) -> str | None:
+    def sound_mode(self) -> str | None:  # pyright: ignore[reportIncompatibleVariableOverride]
         """Return the current sound mode of the device.
 
         Returns:
@@ -660,7 +662,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_SOUND_MODE)
 
     @property
-    def sound_mode_list(self) -> list[str] | None:
+    def sound_mode_list(self) -> list[str] | None:  # pyright: ignore[reportIncompatibleVariableOverride]
         """List of available sound modes.
 
         Returns:
@@ -670,7 +672,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_SOUND_MODE_LIST)
 
     @property
-    def source(self) -> str | None:
+    def source(self) -> str | None:  # pyright: ignore[reportIncompatibleVariableOverride]
         """Return the current input source of the device.
 
         Returns:
@@ -680,7 +682,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_INPUT_SOURCE)
 
     @property
-    def source_list(self) -> list[str] | None:
+    def source_list(self) -> list[str] | None:  # pyright: ignore[reportIncompatibleVariableOverride]
         """List of available input sources.
 
         Returns:
@@ -690,7 +692,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_INPUT_SOURCE_LIST)
 
     @property
-    def repeat(self) -> RepeatMode | None:
+    def repeat(self) -> RepeatMode | None:  # pyright: ignore[reportIncompatibleVariableOverride]
         """Indicate if repeating is enabled.
 
         Returns:
@@ -700,7 +702,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_MEDIA_REPEAT)
 
     @property
-    def shuffle(self) -> bool | None:
+    def shuffle(self) -> bool | None:  # pyright: ignore[reportIncompatibleVariableOverride]
         """Boolean if shuffling is enabled.
 
         Returns:
@@ -710,7 +712,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_MEDIA_SHUFFLE)
 
     @property
-    def supported_features(self) -> MediaPlayerEntityFeature:  # pylint: disable=too-many-branches
+    def supported_features(self) -> MediaPlayerEntityFeature:  # pyright: ignore[reportIncompatibleVariableOverride] # pylint: disable=too-many-branches
         """Flag media player features that are supported.
 
         Returns:
@@ -773,7 +775,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return flags
 
     @property
-    def extra_state_attributes(self) -> dict[str, Any]:
+    def extra_state_attributes(self) -> dict[str, Any]:  # pyright: ignore[reportIncompatibleVariableOverride]
         """Return device specific state attributes.
 
         Returns:
@@ -785,7 +787,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return {ATTR_ACTIVE_CHILD: active_child.entity_id} if active_child else {}
 
     @property
-    def media_position(self) -> float | None:
+    def media_position(self) -> float | None:  # pyright: ignore[reportIncompatibleVariableOverride]
         """Position of current playing media in seconds.
 
         Returns:
@@ -795,7 +797,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_MEDIA_POSITION)
 
     @property
-    def media_position_updated_at(self) -> datetime | None:
+    def media_position_updated_at(self) -> datetime | None:  # pyright: ignore[reportIncompatibleVariableOverride]
         """When was the position of the current playing media valid.
 
         Returns:
@@ -806,7 +808,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_MEDIA_POSITION_UPDATED_AT)
 
     @property
-    def state_attributes(self) -> dict[str, Any]:  # pylint: disable=overridden-final-method
+    def state_attributes(self) -> dict[str, Any]:  # pyright: ignore[reportIncompatibleMethodOverride] # pylint: disable=overridden-final-method
         """Return the state attributes.
 
         Returns:
