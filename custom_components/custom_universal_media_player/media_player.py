@@ -346,7 +346,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
 
         return self._child_attr(attr_name)
 
-    def _child_attr(self, attr_name: str) -> str:
+    def _child_attr(self, attr_name: str) -> Any:
         """Return the active child's attributes.
 
         Args:
