@@ -148,15 +148,15 @@ STATES_ORDER = [
 STATES_ORDER_LOOKUP = {state: idx for idx, state in enumerate(STATES_ORDER)}
 STATES_ORDER_IDLE = STATES_ORDER_LOOKUP[MediaPlayerState.IDLE]
 
-attrs_schema = cv.schema_with_slug_keys(cv.string)
-cmd_schema = cv.schema_with_slug_keys(cv.SERVICE_SCHEMA)
+ATTRS_SCHEMA = cv.schema_with_slug_keys(cv.string)
+CMD_SCHEMA = cv.schema_with_slug_keys(cv.SERVICE_SCHEMA)
 
 PLATFORM_SCHEMA = MEDIA_PLAYER_PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_NAME): cv.string,
         vol.Optional(CONF_CHILDREN, default=[]): cv.entity_ids,
-        vol.Optional(CONF_COMMANDS, default={}): cmd_schema,
-        vol.Optional(CONF_ATTRS, default={}): vol.Or(cv.ensure_list(attrs_schema), attrs_schema),
+        vol.Optional(CONF_COMMANDS, default={}): CMD_SCHEMA,
+        vol.Optional(CONF_ATTRS, default={}): vol.Or(cv.ensure_list(ATTRS_SCHEMA), ATTRS_SCHEMA),
         vol.Optional(CONF_BROWSE_MEDIA_ENTITY): cv.string,
         vol.Optional(CONF_UNIQUE_ID): cv.string,
         vol.Optional(CONF_DEVICE_CLASS): DEVICE_CLASSES_SCHEMA,
@@ -691,7 +691,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
 
     @property
     def repeat(self) -> RepeatMode | None:
-        """Boolean if repeating is enabled.
+        """Indicate if repeating is enabled.
 
         Returns:
             The current repeat mode value, or None if unavailable.
