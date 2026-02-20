@@ -476,7 +476,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_MEDIA_VOLUME_MUTED) in [True, STATE_ON]
 
     @property
-    def media_content_id(self) -> str:
+    def media_content_id(self) -> str | None:
         """Return the content ID of current playing media.
 
         Returns:
@@ -486,7 +486,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._child_attr(ATTR_MEDIA_CONTENT_ID)
 
     @property
-    def media_content_type(self) -> str:
+    def media_content_type(self) -> str | None:
         """Return the content type of current playing media.
 
         Returns:
@@ -506,7 +506,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_MEDIA_DURATION)
 
     @property
-    def media_image_url(self) -> str:
+    def media_image_url(self) -> str | None:
         """Image url of current playing media.
 
         Returns:
@@ -516,7 +516,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_ENTITY_PICTURE)
 
     @property
-    def entity_picture(self) -> str:
+    def entity_picture(self) -> str | None:
         """Return image of the media playing.
 
         The custom universal media player doesn't use the parent class logic, since
@@ -530,7 +530,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self.media_image_url
 
     @property
-    def media_title(self) -> str:
+    def media_title(self) -> str | None:
         """Title of current playing media.
 
         Returns:
@@ -540,7 +540,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_MEDIA_TITLE)
 
     @property
-    def media_artist(self) -> str:
+    def media_artist(self) -> str | None:
         """Artist of current playing media (Music track only).
 
         Returns:
@@ -550,7 +550,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_MEDIA_ARTIST)
 
     @property
-    def media_album_name(self) -> str:
+    def media_album_name(self) -> str | None:
         """Album name of current playing media (Music track only).
 
         Returns:
