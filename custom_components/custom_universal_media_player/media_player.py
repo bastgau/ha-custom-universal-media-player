@@ -181,8 +181,6 @@ async def async_setup_platform(
         async_add_entities: Callback to register new entities.
         discovery_info: Optional discovery information.
 
-
-
     """
     await async_setup_reload_service(hass, "custom_universal_media_player", ["media_player"])
 
