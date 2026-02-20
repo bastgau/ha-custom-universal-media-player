@@ -93,6 +93,8 @@ from homeassistant.helpers.service import async_call_from_config
 from . import ATTR_ENTITY_PICTURE_LOCAL
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from homeassistant.components.media_player.browse_media import BrowseMedia
     from homeassistant.helpers.entity_component import EntityComponent
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -290,7 +292,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
 
         self.async_on_remove(async_track_state_change_event(self.hass, list(set(depend)), _async_on_dependency_update))
 
-    def _entity_lkp(self, entity_id: str, state_attr: dict[str, Any] | None = None) -> Any:
+    def _entity_lkp(self, entity_id: str, state_attr: str | None = None) -> Any:
         """Look up an entity state or attribute value.
 
         Supports multiple entity IDs separated by '-'. Iterates through each
@@ -324,7 +326,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
 
         return None
 
-    def _override_or_child_attr(self, attr_name: str) -> str:
+    def _override_or_child_attr(self, attr_name: str) -> Any:
         """Return either the override or the active child for attr_name.
 
         If an attribute override is defined in the configuration for the given
@@ -433,7 +435,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._child_attr(ATTR_ASSUMED_STATE)
 
     @property
-    def state(self) -> str:
+    def state(self) -> MediaPlayerState | str | None:
         """Return the current state of media player.
 
         Off if master state is off, else status of first active child,
@@ -453,7 +455,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return master_state or MediaPlayerState.OFF
 
     @property
-    def volume_level(self) -> str:
+    def volume_level(self) -> float | None:
         """Volume level of entity specified in attributes or active child.
 
         Returns:
@@ -467,7 +469,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
             return None
 
     @property
-    def is_volume_muted(self) -> str:
+    def is_volume_muted(self) -> bool:
         """Boolean if volume is muted.
 
         Returns:
@@ -497,7 +499,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_MEDIA_CONTENT_TYPE)
 
     @property
-    def media_duration(self) -> str:
+    def media_duration(self) -> float | None:
         """Return the duration of current playing media in seconds.
 
         Returns:
@@ -681,7 +683,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_INPUT_SOURCE)
 
     @property
-    def source_list(self) -> list[any]:
+    def source_list(self) -> list[str] | None:
         """List of available input sources.
 
         Returns:
@@ -691,7 +693,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_INPUT_SOURCE_LIST)
 
     @property
-    def repeat(self) -> str:
+    def repeat(self) -> RepeatMode | None:
         """Boolean if repeating is enabled.
 
         Returns:
@@ -701,7 +703,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_MEDIA_REPEAT)
 
     @property
-    def shuffle(self) -> str:
+    def shuffle(self) -> bool | None:
         """Boolean if shuffling is enabled.
 
         Returns:
@@ -786,7 +788,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return {ATTR_ACTIVE_CHILD: active_child.entity_id} if active_child else {}
 
     @property
-    def media_position(self) -> str:
+    def media_position(self) -> float | None:
         """Position of current playing media in seconds.
 
         Returns:
@@ -796,7 +798,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_MEDIA_POSITION)
 
     @property
-    def media_position_updated_at(self) -> str:
+    def media_position_updated_at(self) -> datetime | None:
         """When was the position of the current playing media valid.
 
         Returns:
@@ -1001,6 +1003,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         priority state. If an active child template result is available, it is
         used directly. Otherwise, iterates over configured children and picks the
         one with the most active state according to STATES_ORDER_LOOKUP.
+
         """
         if self._active_child_template_result:
             self._child_state = self.hass.states.get(self._active_child_template_result)
