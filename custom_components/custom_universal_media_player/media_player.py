@@ -560,7 +560,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_MEDIA_ALBUM_NAME)
 
     @property
-    def media_album_artist(self) -> str:
+    def media_album_artist(self) -> str | None:
         """Album artist of current playing media (Music track only).
 
         Returns:
@@ -570,7 +570,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_MEDIA_ALBUM_ARTIST)
 
     @property
-    def media_track(self) -> str:
+    def media_track(self) -> str | None:
         """Track number of current playing media (Music track only).
 
         Returns:
@@ -580,7 +580,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_MEDIA_TRACK)
 
     @property
-    def media_series_title(self) -> str:
+    def media_series_title(self) -> str | None:
         """Return the title of the series of current playing media (TV).
 
         Returns:
@@ -590,7 +590,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_MEDIA_SERIES_TITLE)
 
     @property
-    def media_season(self) -> str:
+    def media_season(self) -> str | None:
         """Season of current playing media (TV Show only).
 
         Returns:
@@ -600,7 +600,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_MEDIA_SEASON)
 
     @property
-    def media_episode(self) -> str:
+    def media_episode(self) -> str | None:
         """Episode of current playing media (TV Show only).
 
         Returns:
@@ -610,7 +610,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_MEDIA_EPISODE)
 
     @property
-    def media_channel(self) -> str:
+    def media_channel(self) -> str | None:
         """Channel currently playing.
 
         Returns:
@@ -620,7 +620,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_MEDIA_CHANNEL)
 
     @property
-    def media_playlist(self) -> str:
+    def media_playlist(self) -> str | None:
         """Title of Playlist currently playing.
 
         Returns:
@@ -630,7 +630,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_MEDIA_PLAYLIST)
 
     @property
-    def app_id(self) -> str:
+    def app_id(self) -> str | None:
         """ID of the current running app.
 
         Returns:
@@ -640,7 +640,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_APP_ID)
 
     @property
-    def app_name(self) -> str:
+    def app_name(self) -> str | None:
         """Name of the current running app.
 
         Returns:
@@ -650,7 +650,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_APP_NAME)
 
     @property
-    def sound_mode(self) -> str:
+    def sound_mode(self) -> str | None:
         """Return the current sound mode of the device.
 
         Returns:
@@ -670,7 +670,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return self._override_or_child_attr(ATTR_SOUND_MODE_LIST)
 
     @property
-    def source(self) -> str:
+    def source(self) -> str | None:
         """Return the current input source of the device.
 
         Returns:
