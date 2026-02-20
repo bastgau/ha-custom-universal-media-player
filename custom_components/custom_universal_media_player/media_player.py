@@ -91,6 +91,14 @@ from homeassistant.helpers.reload import async_setup_reload_service
 from homeassistant.helpers.service import async_call_from_config
 
 from . import ATTR_ENTITY_PICTURE_LOCAL
+from .const import (
+    ATTR_ACTIVE_CHILD,
+    CONF_ACTIVE_CHILD_TEMPLATE,
+    CONF_ATTRS,
+    CONF_BROWSE_MEDIA_ENTITY,
+    CONF_CHILDREN,
+    CONF_COMMANDS,
+)
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -126,14 +134,6 @@ ATTR_TO_PROPERTY = [
     ATTR_MEDIA_REPEAT,
 ]
 
-
-ATTR_ACTIVE_CHILD = "active_child"
-
-CONF_ACTIVE_CHILD_TEMPLATE = "active_child_template"
-CONF_ATTRS = "attributes"
-CONF_CHILDREN = "children"
-CONF_COMMANDS = "commands"
-CONF_BROWSE_MEDIA_ENTITY = "browse_media_entity"
 
 STATES_ORDER = [
     STATE_UNKNOWN,
@@ -824,6 +824,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
             if (value := getattr(self, attr)) is not None:
                 state_attr[attr] = value
 
+        # Use local image proxy if the URL is not HTTPS, as HA runs over HTTPS
         if ATTR_ENTITY_PICTURE_LOCAL not in state_attr or "https:" not in state_attr[ATTR_ENTITY_PICTURE_LOCAL]:
             state_attr[ATTR_ENTITY_PICTURE_LOCAL] = self.media_image_local
 
