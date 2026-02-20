@@ -424,12 +424,11 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         return None
 
     @property
-    def assumed_state(self) -> bool:
+    def assumed_state(self) -> bool | None:
         """Return True if unable to access real state of the entity.
 
         Returns:
-            The assumed state value from the active child, or None if no child
-            is active.
+            The assumed state value from the active child, or None if no child is active.
 
         """
         return self._child_attr(ATTR_ASSUMED_STATE)
