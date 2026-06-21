@@ -16,6 +16,10 @@
         "ghcr.io/devcontainers/features/rust:1": {}
     },
     "postCreateCommand": "scripts/setup",
+    "mounts": [
+        "type=bind,source=${localEnv:HOME}${localEnv:USERPROFILE}/.ssh,target=/home/vscode/.ssh,readonly",
+        "type=volume,source=claude-config-custom-universal-media-player,target=/home/vscode/.claude"
+    ],
     "runArgs": [
         "--network=host"
     ],
