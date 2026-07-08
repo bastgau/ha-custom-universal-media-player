@@ -1,7 +1,4 @@
 {
     "typeCheckingMode": "strict",
-    "reportMissingTypeStubs": false,
-    "exclude": [
-        "**/fhs_xmltv_tools/**"
-    ]
+    "reportMissingTypeStubs": false
 }
