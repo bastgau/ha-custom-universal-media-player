@@ -6,7 +6,6 @@
   ],
   "dependencies": [],
   "documentation": "https://github.com/bastgau/ha-custom-universal-media-player",
-  "homeassistant": "2026.7.0",
   "integration_type": "hub",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/bastgau/ha-custom-universal-media-player/issues",
