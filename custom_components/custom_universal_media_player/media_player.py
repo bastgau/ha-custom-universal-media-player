@@ -471,7 +471,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """
         try:
             return float(self._override_or_child_attr(ATTR_MEDIA_VOLUME_LEVEL))
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             return None
 
     @property
