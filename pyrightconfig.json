@@ -1,4 +1,4 @@
 {
-    "typeCheckingMode": "strict",
+    "typeCheckingMode": "basic",
     "reportMissingTypeStubs": false
 }

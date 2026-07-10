@@ -4,6 +4,7 @@
   "codeowners": [
     "@bastgau"
   ],
+  "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/bastgau/ha-custom-universal-media-player",
   "integration_type": "hub",
