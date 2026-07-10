@@ -49,6 +49,7 @@ from homeassistant.components.media_player.const import (
     MediaType,
     RepeatMode,
 )
+from homeassistant.config_entries import SOURCE_IMPORT
 from homeassistant.const import (
     ATTR_ASSUMED_STATE,
     ATTR_ENTITY_ID,
@@ -79,10 +80,8 @@ from homeassistant.const import (
     STATE_ON,
     STATE_UNAVAILABLE,
     STATE_UNKNOWN,
-    Platform,
 )
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
-from homeassistant.exceptions import TemplateError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.event import (
     TrackTemplate,
@@ -90,7 +89,6 @@ from homeassistant.helpers.event import (
     async_track_state_change_event,
     async_track_template_result,
 )
-from homeassistant.helpers.reload import async_setup_reload_service
 from homeassistant.helpers.service import async_call_from_config
 
 from . import ATTR_ENTITY_PICTURE_LOCAL
@@ -101,14 +99,16 @@ from .const import (
     CONF_BROWSE_MEDIA_ENTITY,
     CONF_CHILDREN,
     CONF_COMMANDS,
+    DOMAIN,
 )
 
 if TYPE_CHECKING:
     from datetime import datetime
 
     from homeassistant.components.media_player.browse_media import BrowseMedia
+    from homeassistant.config_entries import ConfigEntry
     from homeassistant.helpers.entity_component import EntityComponent
-    from homeassistant.helpers.entity_platform import AddEntitiesCallback
+    from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback, AddEntitiesCallback
     from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 ATTR_TO_PROPERTY = [
@@ -175,22 +175,47 @@ PLATFORM_SCHEMA = MEDIA_PLAYER_PLATFORM_SCHEMA.extend(  # pyright: ignore[report
 async def async_setup_platform(
     hass: HomeAssistant,
     config: ConfigType,
-    async_add_entities: AddEntitiesCallback,
+    async_add_entities: AddEntitiesCallback,  # noqa: ARG001
     discovery_info: DiscoveryInfoType | None = None,  # pylint: disable=unused-argument  # noqa: ARG001
 ) -> None:
-    """Set up the custom universal media player.
+    """Import the YAML platform configuration into a config entry.
+
+    This legacy entry point no longer creates entities directly. It only
+    triggers a config flow import so existing YAML installs are migrated
+    to a config entry (deprecated path, kept during the migration window).
 
     Args:
         hass: The Home Assistant instance.
         config: The platform configuration.
-        async_add_entities: Callback to register new entities.
+        async_add_entities: Unused; entities are added via async_setup_entry.
         discovery_info: Optional discovery information.
 
     """
-    await async_setup_reload_service(hass, "custom_universal_media_player", [Platform.MEDIA_PLAYER])
+    hass.async_create_task(
+        hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_IMPORT}, data=config),
+    )
 
-    player = CustomUniversalMediaPlayer(hass, config)
-    async_add_entities([player])
+
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddConfigEntryEntitiesCallback,
+) -> None:
+    """Set up the custom universal media player from a config entry.
+
+    Args:
+        hass: The Home Assistant instance.
+        entry: The config entry to set up.
+        async_add_entities: Callback to register new entities.
+
+    """
+    config: dict[str, Any] = dict(entry.data)
+
+    for key in (CONF_ACTIVE_CHILD_TEMPLATE, CONF_STATE_TEMPLATE):
+        if isinstance(config.get(key), str):
+            config[key] = cv.template(config[key])
+
+    async_add_entities([CustomUniversalMediaPlayer(hass, config)])
 
 
 class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many-public-methods,too-many-instance-attributes
@@ -264,9 +289,9 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
                 result = data.result
 
                 if template == self._state_template:
-                    self._state_template_result = None if isinstance(result, TemplateError) else result
+                    self._state_template_result = result if isinstance(result, str) else None
                 if template == self._active_child_template:
-                    self._active_child_template_result = None if isinstance(result, TemplateError) else result
+                    self._active_child_template_result = result if isinstance(result, str) else None
 
             if event:
                 self.async_set_context(event.context)
