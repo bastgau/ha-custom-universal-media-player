@@ -154,8 +154,6 @@ media_player:
       volume_level: media_player.google_home_bureau|volume_level
 ```
 
-Enjoy!
-
 ## Contributing
 
 Found a bug or have a feature request? Please open an [issue](https://github.com/bastgau/ha-custom-universal-media-player/issues) on GitHub.
