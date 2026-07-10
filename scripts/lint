@@ -3,7 +3,7 @@
 
 cd "$(dirname "$0")/.."
 
-export files="$(find /workspaces/ha-custom-universal-player/custom_components -name '*.py')"
+export files="$(find /workspaces/ha-custom-universal-media-player/custom_components -name '*.py')"
 echo '================================================='
 echo '=                FILES CHANGED                  ='
 echo '================================================='
