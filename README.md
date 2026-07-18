@@ -27,6 +27,7 @@ List of attributes added and now accessible:
 
 - app_id
 - app_name
+- group_members
 - media_album_artist
 - media_album_name
 - media_artist
@@ -76,7 +77,7 @@ The integration is configured through the Home Assistant UI (config flow), no YA
 2. **Device class**: confirm or change the suggested device class (based on the children's own device class), or set it to `None`.
 3. **Configuration menu**, from which you can:
    - **Edit children** or **Edit device class** at any time.
-   - **Configure commands - Guided**: pick, per command (power, playback, navigation, volume, source), which child entity and action it should call.
+   - **Configure commands - Guided**: pick, per command (power, playback, navigation, volume, source, grouping), which child entity and action it should call.
    - **Configure commands - Custom (YAML)**: review or write the raw command mapping as YAML, for cases the guided picker can't express (e.g. multiple target entities, extra service data).
    - **Configure attributes - Custom (YAML)**: override attributes by pointing them at a child entity's state or attribute (`entity_id|attribute`).
    - **Advanced configuration**: set an optional `browse_media` entity, an `active_child_template`, and a `state_template`.
