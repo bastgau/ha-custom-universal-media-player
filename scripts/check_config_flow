@@ -149,11 +149,11 @@ def check_yaml_screens_preserve_input_on_error() -> None:
         bad_yaml = "turn_on:\n  action: media_player.turn_on\n  target:\n    entity_id: media_player.does_not_exist\n"
         result = await flow.async_step_config_commands_custom({CONF_COMMANDS: bad_yaml})
         schema = result["data_schema"]
-        field_default = next(iter(schema.schema)).default()
+        suggested = next(iter(schema.schema)).description["suggested_value"]
         report(
             "config_commands_custom: preserves submitted YAML on error",
-            field_default == bad_yaml,
-            f"expected {bad_yaml!r}, got {field_default!r}",
+            suggested == bad_yaml,
+            f"expected {bad_yaml!r}, got {suggested!r}",
         )
 
     async def _check_attributes() -> None:
@@ -161,11 +161,11 @@ def check_yaml_screens_preserve_input_on_error() -> None:
         bad_yaml = "state: [unbalanced\n"
         result = await flow.async_step_config_attributes_custom({CONF_ATTRS: bad_yaml})
         schema = result["data_schema"]
-        field_default = next(iter(schema.schema)).default()
+        suggested = next(iter(schema.schema)).description["suggested_value"]
         report(
             "config_attributes_custom: preserves submitted YAML on error",
-            field_default == bad_yaml,
-            f"expected {bad_yaml!r}, got {field_default!r}",
+            suggested == bad_yaml,
+            f"expected {bad_yaml!r}, got {suggested!r}",
         )
 
     asyncio.run(_check_commands_review())

@@ -899,10 +899,11 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
                 return await self.async_step_config_menu()
 
         description_placeholders = {"problems": _format_problems(problems)}
+        schema, preview_yaml = self._commands_review_schema(user_input if errors else None)
 
         return self.async_show_form(
             step_id="config_commands_custom",
-            data_schema=self._commands_review_schema(user_input if errors else None),
+            data_schema=self.add_suggested_values_to_schema(schema, {CONF_COMMANDS: preview_yaml}),
             errors=errors,
             description_placeholders=description_placeholders,
         )
@@ -969,8 +970,12 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
 
         return unknown
 
-    def _commands_review_schema(self, user_input: dict[str, Any] | None = None) -> vol.Schema:
+    def _commands_review_schema(self, user_input: dict[str, Any] | None = None) -> tuple[vol.Schema, str]:
         """Build the review step schema, a single YAML textarea for all commands.
+
+        The field has no schema default: it's pre-filled via a suggested_value
+        instead, so clearing the textarea and submitting it empty is respected
+        instead of the frontend silently reverting to the previous value.
 
         Args:
             user_input: The previously submitted (invalid) form data, if any,
@@ -978,7 +983,8 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
                 instead of reverting to the previously saved commands.
 
         Returns:
-            The voluptuous schema for the review form.
+            A tuple of the voluptuous schema for the review form, and the
+            suggested value to overlay on it.
 
         """
         if user_input is not None:
@@ -989,9 +995,8 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
                 yaml.safe_dump(json.loads(json.dumps(existing_commands)), sort_keys=False) if existing_commands else ""
             )
 
-        return vol.Schema(
-            {vol.Optional(CONF_COMMANDS, default=preview_yaml): TextSelector(TextSelectorConfig(multiline=True))},
-        )
+        schema = vol.Schema({vol.Optional(CONF_COMMANDS): TextSelector(TextSelectorConfig(multiline=True))})
+        return schema, preview_yaml
 
     async def async_step_config_attributes_custom(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Handle the raw YAML attribute overrides step.
@@ -1045,13 +1050,11 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
 
         description_placeholders = {"problems": _format_problems(problems)}
 
-        schema = vol.Schema(
-            {vol.Optional(CONF_ATTRS, default=preview_yaml): TextSelector(TextSelectorConfig(multiline=True))},
-        )
+        schema = vol.Schema({vol.Optional(CONF_ATTRS): TextSelector(TextSelectorConfig(multiline=True))})
 
         return self.async_show_form(
             step_id="config_attributes_custom",
-            data_schema=schema,
+            data_schema=self.add_suggested_values_to_schema(schema, {CONF_ATTRS: preview_yaml}),
             errors=errors,
             description_placeholders=description_placeholders,
         )
