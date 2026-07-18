@@ -898,6 +898,9 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """
         state_attr: dict[str, Any] = {}
 
+        if self.support_grouping:
+            state_attr[ATTR_GROUP_MEMBERS] = self.group_members
+
         if self.state == MediaPlayerState.OFF:
             return state_attr
 
