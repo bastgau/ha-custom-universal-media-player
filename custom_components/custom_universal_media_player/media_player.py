@@ -1038,12 +1038,38 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
     async def async_join_players(self, group_members: list[str]) -> None:
         """Join the active child with other players.
 
+        group_members may reference other custom_universal_media_player
+        entities rather than real ones (they're what the join dialog lists
+        for this player). The underlying platform (Sonos, Cast, etc.) only
+        knows its own real entities, so each virtual member is resolved to
+        its own active child before the service call.
+
         Args:
             group_members: The entity IDs of the players to join.
 
         """
-        data = {ATTR_GROUP_MEMBERS: group_members}
+        resolved_members = [self._resolve_real_entity_id(entity_id) for entity_id in group_members]
+        data = {ATTR_GROUP_MEMBERS: resolved_members}
         await self._async_call_service(SERVICE_JOIN, data, allow_override=True)
+
+    def _resolve_real_entity_id(self, entity_id: str) -> str:
+        """Resolve a group member to a real (non-virtual) entity ID.
+
+        Args:
+            entity_id: The entity ID to resolve, possibly another
+                custom_universal_media_player entity.
+
+        Returns:
+            The entity's own active_child entity ID if it is another
+            custom_universal_media_player instance, otherwise the entity ID
+            unchanged.
+
+        """
+        state = self.hass.states.get(entity_id)
+        if state is None:
+            return entity_id
+
+        return state.attributes.get(ATTR_ACTIVE_CHILD, entity_id)
 
     @override
     async def async_unjoin_player(self) -> None:

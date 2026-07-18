@@ -98,16 +98,10 @@ COMMAND_CATEGORIES: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("navigation", (SERVICE_MEDIA_NEXT_TRACK, SERVICE_MEDIA_PREVIOUS_TRACK)),
     ("volume", (SERVICE_VOLUME_UP, SERVICE_VOLUME_DOWN, SERVICE_VOLUME_SET, SERVICE_VOLUME_MUTE)),
     ("source", (SERVICE_SELECT_SOURCE, SERVICE_SELECT_SOUND_MODE)),
-    ("grouping", (SERVICE_UNJOIN,)),
+    ("grouping", (SERVICE_JOIN, SERVICE_UNJOIN)),
 )
 
-# SERVICE_JOIN is not offered by the guided entity+action picker: it needs a
-# group_members list, which the picker cannot build (only action+target). It
-# is still a recognized command key, configurable via the custom YAML screen.
-KNOWN_COMMAND_KEYS: tuple[str, ...] = (
-    *(key for _category, keys in COMMAND_CATEGORIES for key in keys),
-    SERVICE_JOIN,
-)
+KNOWN_COMMAND_KEYS: tuple[str, ...] = tuple(key for _category, keys in COMMAND_CATEGORIES for key in keys)
 
 ACTION_REQUIRED_FEATURE: dict[str, MediaPlayerEntityFeature] = {
     SERVICE_TURN_ON: MediaPlayerEntityFeature.TURN_ON,
@@ -148,9 +142,7 @@ DEVICE_CLASS_OPTIONS: tuple[str, ...] = tuple(
     ),
 )
 
-ACTION_OPTIONS: tuple[str, ...] = tuple(
-    sorted(f"{MEDIA_PLAYER_DOMAIN}.{key}" for key in KNOWN_COMMAND_KEYS if key != SERVICE_JOIN)
-)
+ACTION_OPTIONS: tuple[str, ...] = tuple(sorted(f"{MEDIA_PLAYER_DOMAIN}.{key}" for key in KNOWN_COMMAND_KEYS))
 
 
 def _entity_field(key: str, *, error: bool = False) -> str:
