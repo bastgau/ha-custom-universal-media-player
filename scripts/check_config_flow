@@ -172,6 +172,51 @@ def check_yaml_screens_preserve_input_on_error() -> None:
     asyncio.run(_check_attributes())
 
 
+def check_yaml_screens_have_no_static_default() -> None:
+    """Regression test: YAML textarea fields must not use a static default.
+
+    A vol.Optional(key, default=...) field is silently re-filled by the
+    frontend even after the user clears the textarea and submits it empty,
+    because "empty" is treated as "revert to default" rather than as a real
+    empty value. The preview must be passed as a suggested_value instead
+    (via add_suggested_values_to_schema), which is a pure UI hint and is
+    never re-injected - only that way does submitting an empty textarea
+    actually clear the stored commands/attributes.
+    """
+    import voluptuous as vol  # noqa: PLC0415
+
+    import custom_universal_media_player.config_flow as cf  # noqa: PLC0415
+    from custom_universal_media_player.const import CONF_ATTRS, CONF_COMMANDS  # noqa: PLC0415
+
+    async def _check_commands_review_clears() -> None:
+        flow = _make_flow(cf, {CONF_COMMANDS: {"turn_on": {"action": "media_player.turn_on"}}})
+        field = next(iter(flow._commands_review_schema()[0].schema))  # noqa: SLF001
+        no_static_default = field.default is vol.UNDEFINED
+
+        await flow.async_step_config_commands_custom({CONF_COMMANDS: ""})
+        report(
+            "config_commands_custom: no static default, and empty submission clears commands",
+            no_static_default and flow._data.get(CONF_COMMANDS) == {},  # noqa: SLF001
+            f"no_static_default={no_static_default}, commands={flow._data.get(CONF_COMMANDS)!r}",  # noqa: SLF001
+        )
+
+    async def _check_attributes_clears() -> None:
+        flow = _make_flow(cf, {CONF_ATTRS: {"state": "media_player.bedroom"}}, known_entities={"media_player.bedroom"})
+        result = await flow.async_step_config_attributes_custom()
+        field = next(iter(result["data_schema"].schema))
+        no_static_default = field.default is vol.UNDEFINED
+
+        await flow.async_step_config_attributes_custom({CONF_ATTRS: ""})
+        report(
+            "config_attributes_custom: no static default, and empty submission clears attributes",
+            no_static_default and flow._data.get(CONF_ATTRS) == {},  # noqa: SLF001
+            f"no_static_default={no_static_default}, attrs={flow._data.get(CONF_ATTRS)!r}",  # noqa: SLF001
+        )
+
+    asyncio.run(_check_commands_review_clears())
+    asyncio.run(_check_attributes_clears())
+
+
 def check_actions_no_stale_suggestion() -> None:
     """Regression test: clearing a command must not resurrect it on revisit.
 
@@ -375,6 +420,7 @@ def main() -> int:
     check_json_files()
     check_imports()
     check_yaml_screens_preserve_input_on_error()
+    check_yaml_screens_have_no_static_default()
     check_actions_no_stale_suggestion()
     check_empty_entity_id_does_not_crash()
     check_command_validation_is_cumulative()
