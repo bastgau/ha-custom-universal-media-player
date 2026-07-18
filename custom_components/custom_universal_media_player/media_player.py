@@ -15,6 +15,7 @@ from homeassistant.components.media_player import (
 from homeassistant.components.media_player.const import (
     ATTR_APP_ID,
     ATTR_APP_NAME,
+    ATTR_GROUP_MEMBERS,
     ATTR_INPUT_SOURCE,
     ATTR_INPUT_SOURCE_LIST,
     ATTR_MEDIA_ALBUM_ARTIST,
@@ -41,9 +42,11 @@ from homeassistant.components.media_player.const import (
     ATTR_SOUND_MODE_LIST,
     DOMAIN as MEDIA_PLAYER_DOMAIN,
     SERVICE_CLEAR_PLAYLIST,
+    SERVICE_JOIN,
     SERVICE_PLAY_MEDIA,
     SERVICE_SELECT_SOUND_MODE,
     SERVICE_SELECT_SOURCE,
+    SERVICE_UNJOIN,
     MediaPlayerEntityFeature,
     MediaPlayerState,
     MediaType,
@@ -778,6 +781,10 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
 
         """
         flags: MediaPlayerEntityFeature = self._child_attr(ATTR_SUPPORTED_FEATURES) or MediaPlayerEntityFeature(0)
+        flags &= ~MediaPlayerEntityFeature.GROUPING
+
+        if SERVICE_JOIN in self._cmds:
+            flags |= MediaPlayerEntityFeature.GROUPING
 
         if SERVICE_TURN_ON in self._cmds:
             flags |= MediaPlayerEntityFeature.TURN_ON
@@ -1014,6 +1021,22 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
     async def async_clear_playlist(self) -> None:
         """Clear player playlist."""
         await self._async_call_service(SERVICE_CLEAR_PLAYLIST, allow_override=True)
+
+    @override
+    async def async_join_players(self, group_members: list[str]) -> None:
+        """Join the active child with other players.
+
+        Args:
+            group_members: The entity IDs of the players to join.
+
+        """
+        data = {ATTR_GROUP_MEMBERS: group_members}
+        await self._async_call_service(SERVICE_JOIN, data, allow_override=True)
+
+    @override
+    async def async_unjoin_player(self) -> None:
+        """Remove the active child from its current group."""
+        await self._async_call_service(SERVICE_UNJOIN, allow_override=True)
 
     @override
     async def async_set_shuffle(self, shuffle: bool) -> None:
