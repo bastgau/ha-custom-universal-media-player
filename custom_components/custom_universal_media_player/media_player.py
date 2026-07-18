@@ -402,7 +402,13 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
 
         If allow_override is True and a command override is defined for the
         given service, the override is called instead of delegating to the
-        active child.
+        active child. The call's own data (e.g. media_content_id for
+        play_media, volume_level for volume_set) is merged into the
+        override's data so it reaches the target service even if the
+        override doesn't reference it via a Jinja2 template - an explicit
+        key in the override's own data still takes priority. Likewise, if
+        the override doesn't define its own target, it defaults to the
+        active child, same as a non-overridden command would.
 
         Args:
             service_name: The name of the media player service to call.
@@ -415,9 +421,15 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
             service_data = {}
 
         if allow_override and service_name in self._cmds:
+            override = dict(self._cmds[service_name])
+            override["data"] = {**service_data, **override.get("data", {})}
+
+            if "target" not in override and (active_child := self._child_state) is not None:
+                override["target"] = {ATTR_ENTITY_ID: active_child.entity_id}
+
             await async_call_from_config(
                 self.hass,
-                self._cmds[service_name],
+                override,
                 variables=service_data,
                 blocking=True,
                 validate_config=False,
@@ -781,7 +793,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
 
         """
         flags: MediaPlayerEntityFeature = self._child_attr(ATTR_SUPPORTED_FEATURES) or MediaPlayerEntityFeature(0)
-        flags &= ~MediaPlayerEntityFeature.GROUPING
+        flags &= ~(MediaPlayerEntityFeature.GROUPING | MediaPlayerEntityFeature.BROWSE_MEDIA)
 
         if SERVICE_JOIN in self._cmds:
             flags |= MediaPlayerEntityFeature.GROUPING
