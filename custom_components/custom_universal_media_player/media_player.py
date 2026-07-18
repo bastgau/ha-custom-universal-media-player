@@ -1071,6 +1071,35 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
 
         return state.attributes.get(ATTR_ACTIVE_CHILD, entity_id)
 
+    @property
+    @override
+    def group_members(self) -> list[str] | None:  # pyright: ignore[reportIncompatibleVariableOverride]
+        """List of members which are currently grouped together.
+
+        The active child's own group_members are real entity IDs (e.g. a
+        Sonos speaker). Each is mapped back to the custom_universal_media_player
+        entity that currently has it as its active child, if any, so the
+        join dialog and the group count badge reflect the virtual entities
+        the user actually configured - falling back to the real entity ID
+        when no matching virtual entity is found.
+
+        Returns:
+            The list of group member entity IDs, or None if the active
+            child doesn't report any.
+
+        """
+        real_members = self._child_attr(ATTR_GROUP_MEMBERS)
+        if not real_members:
+            return real_members
+
+        real_to_virtual = {
+            state.attributes[ATTR_ACTIVE_CHILD]: state.entity_id
+            for state in self.hass.states.async_all(MEDIA_PLAYER_DOMAIN)
+            if ATTR_ACTIVE_CHILD in state.attributes
+        }
+
+        return [real_to_virtual.get(entity_id, entity_id) for entity_id in real_members]
+
     @override
     async def async_unjoin_player(self) -> None:
         """Remove the active child from its current group."""
