@@ -108,6 +108,17 @@
               "select_sound_mode__entity_error": "⚠️ SELECT SOUND MODE",
               "select_sound_mode__action": "Select an action"
             }
+          },
+          "category_grouping": {
+            "name": "Grouping",
+            "data": {
+              "join__entity": "JOIN",
+              "join__entity_error": "⚠️ JOIN",
+              "join__action": "Select an action",
+              "unjoin__entity": "UNJOIN",
+              "unjoin__entity_error": "⚠️ UNJOIN",
+              "unjoin__action": "Select an action"
+            }
           }
         }
       },

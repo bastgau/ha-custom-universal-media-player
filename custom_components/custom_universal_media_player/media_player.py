@@ -15,6 +15,7 @@ from homeassistant.components.media_player import (
 from homeassistant.components.media_player.const import (
     ATTR_APP_ID,
     ATTR_APP_NAME,
+    ATTR_GROUP_MEMBERS,
     ATTR_INPUT_SOURCE,
     ATTR_INPUT_SOURCE_LIST,
     ATTR_MEDIA_ALBUM_ARTIST,
@@ -41,9 +42,11 @@ from homeassistant.components.media_player.const import (
     ATTR_SOUND_MODE_LIST,
     DOMAIN as MEDIA_PLAYER_DOMAIN,
     SERVICE_CLEAR_PLAYLIST,
+    SERVICE_JOIN,
     SERVICE_PLAY_MEDIA,
     SERVICE_SELECT_SOUND_MODE,
     SERVICE_SELECT_SOURCE,
+    SERVICE_UNJOIN,
     MediaPlayerEntityFeature,
     MediaPlayerState,
     MediaType,
@@ -399,7 +402,13 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
 
         If allow_override is True and a command override is defined for the
         given service, the override is called instead of delegating to the
-        active child.
+        active child. The call's own data (e.g. media_content_id for
+        play_media, volume_level for volume_set) is merged into the
+        override's data so it reaches the target service even if the
+        override doesn't reference it via a Jinja2 template - an explicit
+        key in the override's own data still takes priority. Likewise, if
+        the override doesn't define its own target, it defaults to the
+        active child, same as a non-overridden command would.
 
         Args:
             service_name: The name of the media player service to call.
@@ -412,9 +421,15 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
             service_data = {}
 
         if allow_override and service_name in self._cmds:
+            override = dict(self._cmds[service_name])
+            override["data"] = {**service_data, **override.get("data", {})}
+
+            if "target" not in override and (active_child := self._child_state) is not None:
+                override["target"] = {ATTR_ENTITY_ID: active_child.entity_id}
+
             await async_call_from_config(
                 self.hass,
-                self._cmds[service_name],
+                override,
                 variables=service_data,
                 blocking=True,
                 validate_config=False,
@@ -778,6 +793,10 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
 
         """
         flags: MediaPlayerEntityFeature = self._child_attr(ATTR_SUPPORTED_FEATURES) or MediaPlayerEntityFeature(0)
+        flags &= ~(MediaPlayerEntityFeature.GROUPING | MediaPlayerEntityFeature.BROWSE_MEDIA)
+
+        if SERVICE_JOIN in self._cmds:
+            flags |= MediaPlayerEntityFeature.GROUPING
 
         if SERVICE_TURN_ON in self._cmds:
             flags |= MediaPlayerEntityFeature.TURN_ON
@@ -878,6 +897,9 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
 
         """
         state_attr: dict[str, Any] = {}
+
+        if self.support_grouping:
+            state_attr[ATTR_GROUP_MEMBERS] = self.group_members
 
         if self.state == MediaPlayerState.OFF:
             return state_attr
@@ -1014,6 +1036,77 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
     async def async_clear_playlist(self) -> None:
         """Clear player playlist."""
         await self._async_call_service(SERVICE_CLEAR_PLAYLIST, allow_override=True)
+
+    @override
+    async def async_join_players(self, group_members: list[str]) -> None:
+        """Join the active child with other players.
+
+        group_members may reference other custom_universal_media_player
+        entities rather than real ones (they're what the join dialog lists
+        for this player). The underlying platform (Sonos, Cast, etc.) only
+        knows its own real entities, so each virtual member is resolved to
+        its own active child before the service call.
+
+        Args:
+            group_members: The entity IDs of the players to join.
+
+        """
+        resolved_members = [self._resolve_real_entity_id(entity_id) for entity_id in group_members]
+        data = {ATTR_GROUP_MEMBERS: resolved_members}
+        await self._async_call_service(SERVICE_JOIN, data, allow_override=True)
+
+    def _resolve_real_entity_id(self, entity_id: str) -> str:
+        """Resolve a group member to a real (non-virtual) entity ID.
+
+        Args:
+            entity_id: The entity ID to resolve, possibly another
+                custom_universal_media_player entity.
+
+        Returns:
+            The entity's own active_child entity ID if it is another
+            custom_universal_media_player instance, otherwise the entity ID
+            unchanged.
+
+        """
+        state = self.hass.states.get(entity_id)
+        if state is None:
+            return entity_id
+
+        return state.attributes.get(ATTR_ACTIVE_CHILD, entity_id)
+
+    @property
+    @override
+    def group_members(self) -> list[str] | None:  # pyright: ignore[reportIncompatibleVariableOverride]
+        """List of members which are currently grouped together.
+
+        The active child's own group_members are real entity IDs (e.g. a
+        Sonos speaker). Each is mapped back to the custom_universal_media_player
+        entity that currently has it as its active child, if any, so the
+        join dialog and the group count badge reflect the virtual entities
+        the user actually configured - falling back to the real entity ID
+        when no matching virtual entity is found.
+
+        Returns:
+            The list of group member entity IDs, or None if the active
+            child doesn't report any.
+
+        """
+        real_members = self._child_attr(ATTR_GROUP_MEMBERS)
+        if not real_members:
+            return real_members
+
+        real_to_virtual = {
+            state.attributes[ATTR_ACTIVE_CHILD]: state.entity_id
+            for state in self.hass.states.async_all(MEDIA_PLAYER_DOMAIN)
+            if ATTR_ACTIVE_CHILD in state.attributes
+        }
+
+        return [real_to_virtual.get(entity_id, entity_id) for entity_id in real_members]
+
+    @override
+    async def async_unjoin_player(self) -> None:
+        """Remove the active child from its current group."""
+        await self._async_call_service(SERVICE_UNJOIN, allow_override=True)
 
     @override
     async def async_set_shuffle(self, shuffle: bool) -> None:
