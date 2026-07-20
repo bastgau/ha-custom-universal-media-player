@@ -42,7 +42,9 @@
                 "ms-python.black-formatter",
                 "tamasfe.even-better-toml",
                 "eamodio.gitlens",
-                "ms-python.pylint"
+                "ms-python.pylint",
+                "Anthropic.claude-code",
+                "Tyriar.sort-lines"
             ],
             "settings": {
                 "files.eol": "\n",

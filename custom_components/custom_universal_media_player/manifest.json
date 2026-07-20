@@ -4,9 +4,10 @@
   "codeowners": [
     "@bastgau"
   ],
+  "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/bastgau/ha-custom-universal-media-player",
-  "integration_type": "hub",
+  "integration_type": "service",
   "iot_class": "calculated",
   "issue_tracker": "https://github.com/bastgau/ha-custom-universal-media-player/issues",
   "loggers": [

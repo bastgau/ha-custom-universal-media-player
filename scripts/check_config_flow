@@ -1,0 +1,441 @@
+#!/usr/bin/env python3
+"""Verification script for the custom_universal_media_player config flow.
+
+Runs lint/format checks, validates strings.json/translations JSON, imports
+all modules against the real installed homeassistant package, and exercises
+a set of regression scenarios for config_flow.py - in particular the "form
+redisplays the user's own input after a validation error" behavior, which
+has regressed more than once for the YAML textarea screens.
+
+Usage: scripts/check_config_flow
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+from pathlib import Path
+import subprocess
+import sys
+
+ROOT = Path(__file__).resolve().parent.parent
+COMPONENT_DIR = ROOT / "custom_components" / "custom_universal_media_player"
+sys.path.insert(0, str(ROOT / "custom_components"))
+
+FAILURES: list[str] = []
+
+
+def report(label: str, ok: bool, detail: str = "") -> None:
+    """Print a pass/fail line and record failures.
+
+    Args:
+        label: Short description of the check.
+        ok: Whether the check passed.
+        detail: Extra detail to print when the check fails.
+
+    """
+    status = "OK  " if ok else "FAIL"
+    print(f"[{status}] {label}")
+    if not ok:
+        if detail:
+            print(f"       {detail}")
+        FAILURES.append(label)
+
+
+def run_ruff() -> None:
+    """Run ruff check and ruff format --check over the component directory."""
+    check = subprocess.run(  # noqa: S603
+        ["ruff", "check", str(COMPONENT_DIR)],  # noqa: S607
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    report("ruff check", check.returncode == 0, check.stdout + check.stderr)
+
+    fmt = subprocess.run(  # noqa: S603
+        ["ruff", "format", "--check", str(COMPONENT_DIR)],  # noqa: S607
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    report("ruff format --check", fmt.returncode == 0, fmt.stdout + fmt.stderr)
+
+
+def check_json_files() -> None:
+    """Validate that strings.json and translations/en.json are valid JSON."""
+    for name in ("strings.json", "translations/en.json"):
+        path = COMPONENT_DIR / name
+        try:
+            json.loads(path.read_text())
+        except (OSError, json.JSONDecodeError) as err:
+            report(f"valid JSON: {name}", False, str(err))
+        else:
+            report(f"valid JSON: {name}", True)
+
+
+def check_imports() -> None:
+    """Import all component modules against the real installed homeassistant."""
+    modules = [
+        "custom_universal_media_player",
+        "custom_universal_media_player.const",
+        "custom_universal_media_player.media_player",
+        "custom_universal_media_player.config_flow",
+    ]
+    for module in modules:
+        try:
+            __import__(module)
+        except Exception as err:
+            report(f"import {module}", False, f"{type(err).__name__}: {err}")
+        else:
+            report(f"import {module}", True)
+
+
+class _FakeState:
+    def __init__(self, attributes: dict | None = None) -> None:
+        self.attributes = attributes or {}
+
+
+class _FakeStates:
+    def __init__(self, known: set[str] | None = None, with_attributes: dict[str, dict] | None = None) -> None:
+        self._known = known or set()
+        self._with_attributes = with_attributes or {}
+
+    def get(self, entity_id: str) -> _FakeState | None:
+        if entity_id in self._with_attributes:
+            return _FakeState(self._with_attributes[entity_id])
+        return _FakeState() if entity_id in self._known else None
+
+
+class _FakeServices:
+    def has_service(self, _domain: str, _service: str) -> bool:
+        return True
+
+
+class _FakeHass:
+    def __init__(
+        self,
+        known_entities: set[str] | None = None,
+        with_attributes: dict[str, dict] | None = None,
+    ) -> None:
+        self.states = _FakeStates(known_entities, with_attributes)
+        self.services = _FakeServices()
+
+
+def _make_flow(
+    cf: object,
+    data: dict,
+    known_entities: set[str] | None = None,
+    with_attributes: dict[str, dict] | None = None,
+) -> object:
+    flow = cf.CustomUniversalMediaPlayerConfigFlow()
+    flow.hass = _FakeHass(known_entities, with_attributes)
+    flow._data = data  # noqa: SLF001
+    return flow
+
+
+def check_yaml_screens_preserve_input_on_error() -> None:
+    """Regression test: YAML textarea screens must echo back invalid input.
+
+    Both the "Custom configuration" (commands) and "Attributes" screens use
+    a raw YAML textarea. On a validation error, the redisplayed form must
+    show exactly what the user submitted - not the previously saved value,
+    and not a blank field. This has regressed twice already.
+    """
+    import custom_universal_media_player.config_flow as cf  # noqa: PLC0415
+    from custom_universal_media_player.const import CONF_ATTRS, CONF_CHILDREN, CONF_COMMANDS  # noqa: PLC0415
+
+    async def _check_commands_review() -> None:
+        flow = _make_flow(cf, {CONF_CHILDREN: []})
+        bad_yaml = "turn_on:\n  action: media_player.turn_on\n  target:\n    entity_id: media_player.does_not_exist\n"
+        result = await flow.async_step_config_commands_custom({CONF_COMMANDS: bad_yaml})
+        schema = result["data_schema"]
+        suggested = next(iter(schema.schema)).description["suggested_value"]
+        report(
+            "config_commands_custom: preserves submitted YAML on error",
+            suggested == bad_yaml,
+            f"expected {bad_yaml!r}, got {suggested!r}",
+        )
+
+    async def _check_attributes() -> None:
+        flow = _make_flow(cf, {})
+        bad_yaml = "state: [unbalanced\n"
+        result = await flow.async_step_config_attributes_custom({CONF_ATTRS: bad_yaml})
+        schema = result["data_schema"]
+        suggested = next(iter(schema.schema)).description["suggested_value"]
+        report(
+            "config_attributes_custom: preserves submitted YAML on error",
+            suggested == bad_yaml,
+            f"expected {bad_yaml!r}, got {suggested!r}",
+        )
+
+    asyncio.run(_check_commands_review())
+    asyncio.run(_check_attributes())
+
+
+def check_yaml_screens_have_no_static_default() -> None:
+    """Regression test: YAML textarea fields must not use a static default.
+
+    A vol.Optional(key, default=...) field is silently re-filled by the
+    frontend even after the user clears the textarea and submits it empty,
+    because "empty" is treated as "revert to default" rather than as a real
+    empty value. The preview must be passed as a suggested_value instead
+    (via add_suggested_values_to_schema), which is a pure UI hint and is
+    never re-injected - only that way does submitting an empty textarea
+    actually clear the stored commands/attributes.
+    """
+    import voluptuous as vol  # noqa: PLC0415
+
+    import custom_universal_media_player.config_flow as cf  # noqa: PLC0415
+    from custom_universal_media_player.const import CONF_ATTRS, CONF_COMMANDS  # noqa: PLC0415
+
+    async def _check_commands_review_clears() -> None:
+        flow = _make_flow(cf, {CONF_COMMANDS: {"turn_on": {"action": "media_player.turn_on"}}})
+        field = next(iter(flow._commands_review_schema()[0].schema))  # noqa: SLF001
+        no_static_default = field.default is vol.UNDEFINED
+
+        await flow.async_step_config_commands_custom({CONF_COMMANDS: ""})
+        report(
+            "config_commands_custom: no static default, and empty submission clears commands",
+            no_static_default and flow._data.get(CONF_COMMANDS) == {},  # noqa: SLF001
+            f"no_static_default={no_static_default}, commands={flow._data.get(CONF_COMMANDS)!r}",  # noqa: SLF001
+        )
+
+    async def _check_attributes_clears() -> None:
+        flow = _make_flow(cf, {CONF_ATTRS: {"state": "media_player.bedroom"}}, known_entities={"media_player.bedroom"})
+        result = await flow.async_step_config_attributes_custom()
+        field = next(iter(result["data_schema"].schema))
+        no_static_default = field.default is vol.UNDEFINED
+
+        await flow.async_step_config_attributes_custom({CONF_ATTRS: ""})
+        report(
+            "config_attributes_custom: no static default, and empty submission clears attributes",
+            no_static_default and flow._data.get(CONF_ATTRS) == {},  # noqa: SLF001
+            f"no_static_default={no_static_default}, attrs={flow._data.get(CONF_ATTRS)!r}",  # noqa: SLF001
+        )
+
+    asyncio.run(_check_commands_review_clears())
+    asyncio.run(_check_attributes_clears())
+
+
+def check_actions_no_stale_suggestion() -> None:
+    """Regression test: clearing a command must not resurrect it on revisit.
+
+    A command removed by submitting the guided picker screen with blank
+    fields must not reappear as a suggestion the next time the screen is
+    built, even with a single child in the group.
+    """
+    import custom_universal_media_player.config_flow as cf  # noqa: PLC0415
+    from custom_universal_media_player.const import CONF_CHILDREN, CONF_COMMANDS  # noqa: PLC0415
+
+    from homeassistant.const import ATTR_SUPPORTED_FEATURES, CONF_NAME  # noqa: PLC0415
+
+    class _State:
+        def __init__(self, features: int) -> None:
+            self.attributes = {ATTR_SUPPORTED_FEATURES: features}
+
+    async def _check() -> None:
+        entities = {"media_player.bedroom": _State(1)}  # TURN_ON = 1
+        flow = _make_flow(
+            cf,
+            {
+                CONF_CHILDREN: ["media_player.bedroom"],
+                CONF_NAME: "Test",
+                CONF_COMMANDS: {
+                    "turn_on": {
+                        "action": "media_player.turn_on",
+                        "target": {"entity_id": "media_player.bedroom"},
+                    },
+                },
+            },
+        )
+        flow.hass.states = type(
+            "S",
+            (),
+            {"get": staticmethod(lambda eid: entities.get(eid))},
+        )()
+
+        submitted = {cf._category_section("power"): {}}  # noqa: SLF001
+        await flow.async_step_config_commands(submitted)
+
+        _schema, suggested = flow._commands_schema()  # noqa: SLF001
+        power_suggested = suggested.get(cf._category_section("power"), {})  # noqa: SLF001
+        report(
+            "config_commands: cleared command has no stale suggestion",
+            cf._entity_field("turn_on") not in power_suggested,  # noqa: SLF001
+            f"suggested values still contain turn_on: {power_suggested}",
+        )
+
+    asyncio.run(_check())
+
+
+def check_empty_entity_id_does_not_crash() -> None:
+    """Regression test: a YAML entity_id list containing a null must not crash.
+
+    ``entity_id:\\n  -\\n`` parses to ``[None]`` in YAML and passes
+    ``cv.SERVICE_SCHEMA`` unmodified. ``_find_unknown_entities`` must treat
+    that as an "unknown" entity rather than calling ``hass.states.get(None)``,
+    which raises AttributeError.
+    """
+    import custom_universal_media_player.config_flow as cf  # noqa: PLC0415
+    from custom_universal_media_player.const import CONF_COMMANDS  # noqa: PLC0415
+
+    async def _check() -> None:
+        flow = _make_flow(cf, {})
+        raw_yaml = "media_next_track:\n  action: media_player.media_next_track\n  target:\n    entity_id:\n    -\n"
+        try:
+            result = await flow.async_step_config_commands_custom({CONF_COMMANDS: raw_yaml})
+        except AttributeError as err:
+            report("config_commands_custom: null entity_id in list does not crash", False, str(err))
+            return
+        report(
+            "config_commands_custom: null entity_id in list does not crash",
+            result.get("errors", {}).get("base") == "invalid_commands",
+            f"expected invalid_commands error, got: {result.get('errors')}",
+        )
+
+    asyncio.run(_check())
+
+
+def check_command_validation_is_cumulative() -> None:
+    """Regression test: unknown key/entity/action are all reported together.
+
+    A YAML submission with multiple problems (an unrecognized command key,
+    an unknown entity, and an unknown action) must surface all of them in a
+    single error, not just the first category found.
+    """
+    import custom_universal_media_player.config_flow as cf  # noqa: PLC0415
+    from custom_universal_media_player.const import CONF_COMMANDS  # noqa: PLC0415
+
+    async def _check_cumulative() -> None:
+        flow = _make_flow(cf, {})
+        flow.hass.services.has_service = lambda _d, _s: False
+        raw_yaml = (
+            "media_next_trackk:\n"
+            "  action: media_player.media_next_track\n"
+            "  target:\n"
+            "    entity_id: media_player.does_not_exist\n"
+        )
+        result = await flow.async_step_config_commands_custom({CONF_COMMANDS: raw_yaml})
+        problems = result.get("description_placeholders", {}).get("problems", "")
+        ok = "unknown command" in problems and "unknown entity" in problems and "unknown action" in problems
+        report(
+            "config_commands_custom: unknown key/entity/action reported together",
+            ok,
+            f"expected all three categories in: {problems!r}",
+        )
+
+        bullet_lines = [line for line in problems.splitlines() if line.startswith("- ")]
+        report(
+            "config_commands_custom: problems are formatted as a bullet list with real newlines, after the base text",
+            problems.startswith("\n\nInvalid configuration:\n") and len(bullet_lines) >= 2,
+            f"expected problems to start with a blank line then 'Invalid configuration:', got: {problems!r}",
+        )
+
+    async def _check_unknown_key_alone() -> None:
+        flow = _make_flow(cf, {}, known_entities={"media_player.bedroom"})
+        raw_yaml = (
+            "not_a_real_command:\n  action: media_player.turn_on\n  target:\n    entity_id: media_player.bedroom\n"
+        )
+        result = await flow.async_step_config_commands_custom({CONF_COMMANDS: raw_yaml})
+        report(
+            "config_commands_custom: unrecognized command key is rejected",
+            result.get("errors", {}).get("base") == "invalid_commands",
+            f"expected invalid_commands error, got: {result.get('errors')}",
+        )
+
+    asyncio.run(_check_cumulative())
+    asyncio.run(_check_unknown_key_alone())
+
+
+def check_attributes_validation() -> None:
+    """Regression tests for the Attributes (YAML) screen's content validation.
+
+    Unknown entity_ids referenced in an attribute override block saving
+    (like for commands), with the detail reported as a bullet list appended
+    after the base description text. A missing attribute name on an
+    otherwise valid entity is informational only (logged, not shown in the
+    UI) and must not block saving, since an entity can legitimately not
+    expose an attribute in its current state.
+    """
+    import custom_universal_media_player.config_flow as cf  # noqa: PLC0415
+    from custom_universal_media_player.const import CONF_ATTRS  # noqa: PLC0415
+
+    async def _check_unknown_entity_blocks() -> None:
+        flow = _make_flow(cf, {})
+        result = await flow.async_step_config_attributes_custom({CONF_ATTRS: "state: media_player.does_not_exist\n"})
+        problems = result.get("description_placeholders", {}).get("problems", "")
+        report(
+            "config_attributes_custom: unknown entity blocks saving",
+            result.get("errors", {}).get("base") == "invalid_commands",
+            f"expected invalid_commands error, got: {result.get('errors')}",
+        )
+        report(
+            "config_attributes_custom: unknown entity detail is a bullet list after the base text",
+            problems.startswith("\n\nInvalid configuration:\n") and "unknown entity" in problems,
+            f"expected problems to start with a blank line then 'Invalid configuration:', got: {problems!r}",
+        )
+
+    async def _check_missing_attribute_does_not_block() -> None:
+        flow = _make_flow(
+            cf,
+            {},
+            known_entities={"media_player.bedroom"},
+        )
+        result = await flow.async_step_config_attributes_custom(
+            {CONF_ATTRS: "volume_level: media_player.bedroom|volume_level\n"},
+        )
+        report(
+            "config_attributes_custom: missing attribute name does not block saving",
+            result.get("type") == "menu",
+            f"expected menu (saved), got: {result.get('type')}, errors={result.get('errors')}",
+        )
+
+    async def _check_missing_attribute_not_in_ui() -> None:
+        flow = _make_flow(
+            cf,
+            {},
+            with_attributes={"media_player.bedroom": {"volume_level": 0.5}},
+        )
+        await flow.async_step_config_attributes_custom({CONF_ATTRS: "volume_level: media_player.bedroom|volume_level\n"})
+        result = await flow.async_step_config_attributes_custom()
+        report(
+            "config_attributes_custom: missing attribute name is not shown in the UI",
+            "missing_attributes" not in result.get("description_placeholders", {}),
+            f"expected no missing_attributes placeholder, got: {result.get('description_placeholders')}",
+        )
+
+    asyncio.run(_check_unknown_entity_blocks())
+    asyncio.run(_check_missing_attribute_does_not_block())
+    asyncio.run(_check_missing_attribute_not_in_ui())
+
+
+def main() -> int:
+    """Run all checks and return a process exit code.
+
+    Returns:
+        0 if every check passed, 1 otherwise.
+
+    """
+    run_ruff()
+    check_json_files()
+    check_imports()
+    check_yaml_screens_preserve_input_on_error()
+    check_yaml_screens_have_no_static_default()
+    check_actions_no_stale_suggestion()
+    check_empty_entity_id_does_not_crash()
+    check_command_validation_is_cumulative()
+    check_attributes_validation()
+
+    print()
+    if FAILURES:
+        print(f"{len(FAILURES)} check(s) failed:")
+        for label in FAILURES:
+            print(f"  - {label}")
+        return 1
+
+    print("All checks passed.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
