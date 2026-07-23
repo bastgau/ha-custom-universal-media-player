@@ -1183,8 +1183,8 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
             CONF_BROWSE_MEDIA_ENTITY: import_data.get(CONF_BROWSE_MEDIA_ENTITY),
             CONF_UNIQUE_ID: unique_id,
             CONF_DEVICE_CLASS: import_data.get(CONF_DEVICE_CLASS),
-            CONF_ACTIVE_CHILD_TEMPLATE: str(active_child_template) if active_child_template else None,
-            CONF_STATE_TEMPLATE: str(state_template) if state_template else None,
+            CONF_ACTIVE_CHILD_TEMPLATE: active_child_template.template if active_child_template else None,
+            CONF_STATE_TEMPLATE: state_template.template if state_template else None,
         }
 
         async_create_issue(
