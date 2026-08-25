@@ -440,12 +440,16 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
             if "target" not in override and (active_child := self._child_state) is not None:
                 override["target"] = {ATTR_ENTITY_ID: active_child.entity_id}
 
+            # Commands are stored as raw strings in the config entry, so they
+            # have to be validated here to turn "{{ ... }}" back into a
+            # Template - render_complex() leaves plain strings untouched and
+            # the command's Jinja2 would reach the target service verbatim.
             await async_call_from_config(
                 self.hass,
                 override,
                 variables=service_data,
                 blocking=True,
-                validate_config=False,
+                validate_config=True,
             )
             return
 
