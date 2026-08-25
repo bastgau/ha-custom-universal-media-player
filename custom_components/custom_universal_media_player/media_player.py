@@ -58,8 +58,10 @@ from homeassistant.const import (
     ATTR_ENTITY_ID,
     ATTR_ENTITY_PICTURE,
     ATTR_SUPPORTED_FEATURES,
+    CONF_ACTION,
     CONF_DEVICE_CLASS,
     CONF_NAME,
+    CONF_SERVICE,
     CONF_STATE,
     CONF_STATE_TEMPLATE,
     CONF_UNIQUE_ID,
@@ -404,11 +406,16 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         given service, the override is called instead of delegating to the
         active child. The call's own data (e.g. media_content_id for
         play_media, volume_level for volume_set) is merged into the
-        override's data so it reaches the target service even if the
-        override doesn't reference it via a Jinja2 template - an explicit
-        key in the override's own data still takes priority. Likewise, if
-        the override doesn't define its own target, it defaults to the
-        active child, same as a non-overridden command would.
+        override's data only when the override is a pass-through to the same
+        media_player service, since that is the only case where the target
+        accepts the same keys - the commands built by the guided config flow
+        rely on it, as they carry no data of their own. Any other target
+        (a number, an input_select, a script, ...) would reject those keys as
+        extra, so it only receives what the override itself defines; the
+        call's data stays reachable there through the Jinja2 variables. An
+        explicit key in the override's own data always takes priority.
+        Likewise, if the override doesn't define its own target, it defaults
+        to the active child, same as a non-overridden command would.
 
         Args:
             service_name: The name of the media player service to call.
@@ -422,7 +429,13 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
 
         if allow_override and service_name in self._cmds:
             override = dict(self._cmds[service_name])
-            override["data"] = {**service_data, **override.get("data", {})}
+
+            # A templated action isn't known until render time, so it never
+            # qualifies as a pass-through. CONF_SERVICE is the legacy spelling
+            # of CONF_ACTION and may still be around in an older command.
+            action = override.get(CONF_ACTION) or override.get(CONF_SERVICE)
+            if isinstance(action, str) and action == f"{MEDIA_PLAYER_DOMAIN}.{service_name}":
+                override["data"] = {**service_data, **override.get("data", {})}
 
             if "target" not in override and (active_child := self._child_state) is not None:
                 override["target"] = {ATTR_ENTITY_ID: active_child.entity_id}
