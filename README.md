@@ -155,6 +155,66 @@ media_player:
       volume_level: media_player.google_home_bureau|volume_level
 ```
 
+## Passing values to commands
+
+Some commands carry a value: `volume_set` gets a volume, `select_source` gets a source name, `play_media` gets a media id. How that value reaches your command depends on what the command targets.
+
+### Targeting the same `media_player` action
+
+When a command calls `media_player.<the same command>`, the value is forwarded for you. This is what the guided configuration writes, and why the commands in the example above need no `data`:
+
+```yaml
+volume_set:
+  action: media_player.volume_set
+  target:
+    entity_id: media_player.google_home_bureau
+```
+
+### Targeting anything else
+
+When a command calls another action (`number.set_value`, `input_select.select_option`, `script.*`, ...), that action has its own fields and would reject the media player's ones. Read the value from a Jinja2 variable instead, and put it in the field the action actually expects:
+
+```yaml
+volume_set:
+  action: number.set_value
+  target:
+    entity_id: number.rx_v685_volume
+  data:
+    value: "{{ volume_level }}"       # not volume_level: ...
+select_source:
+  action: input_select.select_option
+  target:
+    entity_id: input_select.media_activity
+  data:
+    option: "{{ source }}"            # not source: ...
+```
+
+The variables available are the ones the command itself carries:
+
+| Command | Variables |
+| --- | --- |
+| `volume_set` | `volume_level` (float, `0`-`1`) |
+| `volume_mute` | `is_volume_muted` (boolean) |
+| `select_source` | `source` |
+| `select_sound_mode` | `sound_mode` |
+| `play_media` | `media_content_type`, `media_content_id` |
+| `shuffle_set` | `shuffle` (boolean) |
+| `repeat_set` | `repeat` (`off`, `all`, `one`) |
+| `join` | `group_members` (list of entity IDs) |
+
+Every other command (`turn_on`, `media_play`, `volume_up`, `unjoin`, ...) carries no value, so its `data` only needs whatever the target action requires. Templates are free to read the rest of Home Assistant too, which is how a stepped volume is built without any variable:
+
+```yaml
+volume_up:
+  action: number.set_value
+  target:
+    entity_id: number.rx_v685_volume
+  data:
+    value: "{{ states('number.rx_v685_volume') | float(0) + 0.01 }}"
+```
+
+Note that `volume_level` is expected in the `0`-`1` range on both sides. If the entity behind it uses another scale (a receiver's dB value, a `0`-`100` percentage), convert it in the template, and convert it back in the matching `attributes` entry.
+
 ## Contributing
 
 Found a bug or have a feature request? Please open an [issue](https://github.com/bastgau/ha-custom-universal-media-player/issues) on GitHub.
