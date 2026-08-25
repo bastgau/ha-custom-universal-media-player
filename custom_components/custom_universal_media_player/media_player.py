@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from copy import copy
 from typing import TYPE_CHECKING, Any, override
+from urllib.parse import urlparse
 
 import voluptuous as vol
 
@@ -925,9 +926,15 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
             if (value := getattr(self, attr)) is not None:
                 state_attr[attr] = value
 
-        # Use local image proxy if the URL is not HTTPS, as HA runs over HTTPS
-        if ATTR_ENTITY_PICTURE_LOCAL not in state_attr or "https:" not in state_attr[ATTR_ENTITY_PICTURE_LOCAL]:
-            state_attr[ATTR_ENTITY_PICTURE_LOCAL] = self.media_image_local
+        # The frontend prefers entity_picture_local over entity_picture, so it
+        # is only worth publishing for a remote picture served over plain HTTP,
+        # which a browser would refuse to load into an HTTPS page. The picture
+        # usually is the active child's own proxy URL, and proxying that one
+        # again would only make Home Assistant fetch itself.
+        if (image_url := self.media_image_url) is not None:
+            parsed = urlparse(image_url)
+            if parsed.hostname is not None and parsed.scheme != "https":
+                state_attr[ATTR_ENTITY_PICTURE_LOCAL] = self.media_image_local
 
         return state_attr
 
