@@ -61,6 +61,7 @@ from homeassistant.helpers.selector import (
     TextSelector,
     TextSelectorConfig,
 )
+from homeassistant.helpers.template import Template
 from homeassistant.util import slugify
 from homeassistant.util.uuid import random_uuid_hex
 
@@ -221,6 +222,34 @@ def _format_problems(problems: list[str]) -> str:
 
     bullet_list = "\n".join(f"- {problem}" for problem in problems)
     return f"\n\nInvalid configuration:\n{bullet_list}"
+
+
+def _detemplatize(value: Any) -> Any:
+    """Turn the Template objects in a validated command back into raw strings.
+
+    cv.SERVICE_SCHEMA compiles every "{{ ... }}" string into a Template, and a
+    Template cannot be serialized to JSON. Left as-is in a config entry it
+    makes the whole .storage/core.config_entries write fail, so nothing is
+    ever persisted. Commands are stored as raw strings instead and validated
+    again when they are called.
+
+    Args:
+        value: A validated command, or any part of one.
+
+    Returns:
+        The same structure with every Template replaced by its source string.
+
+    """
+    if isinstance(value, Template):
+        return value.template
+
+    if isinstance(value, dict):
+        return {key: _detemplatize(item) for key, item in value.items()}
+
+    if isinstance(value, list):
+        return [_detemplatize(item) for item in value]
+
+    return value
 
 
 def _is_simple_command(command: dict[str, Any] | None) -> bool:
@@ -693,7 +722,7 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         self._data.setdefault(CONF_COMMANDS, {})
         return self._finalize()
 
-    async def async_step_config_commands(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+    async def async_step_config_commands(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:  # pylint: disable=too-many-locals
         """Handle the entity/action picker step.
 
         Submitting this screen replaces all commands with what is picked
@@ -749,7 +778,7 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
-    def _commands_schema(
+    def _commands_schema(  # pylint: disable=too-many-locals
         self,
         user_input: dict[str, Any] | None = None,
         incomplete_keys: set[str] | None = None,
@@ -893,7 +922,7 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
                     if problems:
                         errors["base"] = "invalid_commands"
                     else:
-                        self._data[CONF_COMMANDS] = validated
+                        self._data[CONF_COMMANDS] = _detemplatize(validated)
 
             if not errors:
                 return await self.async_step_config_menu()
@@ -1178,7 +1207,7 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         data: dict[str, Any] = {
             CONF_NAME: import_data[CONF_NAME],
             CONF_CHILDREN: import_data.get(CONF_CHILDREN, []),
-            CONF_COMMANDS: import_data.get(CONF_COMMANDS, {}),
+            CONF_COMMANDS: _detemplatize(import_data.get(CONF_COMMANDS, {})),
             CONF_ATTRS: import_data.get(CONF_ATTRS, {}),
             CONF_BROWSE_MEDIA_ENTITY: import_data.get(CONF_BROWSE_MEDIA_ENTITY),
             CONF_UNIQUE_ID: unique_id,

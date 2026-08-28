@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from copy import copy
 from typing import TYPE_CHECKING, Any, override
+from urllib.parse import urlparse
 
 import voluptuous as vol
 
@@ -58,8 +59,10 @@ from homeassistant.const import (
     ATTR_ENTITY_ID,
     ATTR_ENTITY_PICTURE,
     ATTR_SUPPORTED_FEATURES,
+    CONF_ACTION,
     CONF_DEVICE_CLASS,
     CONF_NAME,
+    CONF_SERVICE,
     CONF_STATE,
     CONF_STATE_TEMPLATE,
     CONF_UNIQUE_ID,
@@ -178,7 +181,7 @@ PLATFORM_SCHEMA = MEDIA_PLAYER_PLATFORM_SCHEMA.extend(  # pyright: ignore[report
 async def async_setup_platform(
     hass: HomeAssistant,
     config: ConfigType,
-    async_add_entities: AddEntitiesCallback,  # noqa: ARG001
+    async_add_entities: AddEntitiesCallback,  # noqa: ARG001 # pylint: disable=unused-argument
     discovery_info: DiscoveryInfoType | None = None,  # pylint: disable=unused-argument  # noqa: ARG001
 ) -> None:
     """Import the YAML platform configuration into a config entry.
@@ -404,11 +407,16 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         given service, the override is called instead of delegating to the
         active child. The call's own data (e.g. media_content_id for
         play_media, volume_level for volume_set) is merged into the
-        override's data so it reaches the target service even if the
-        override doesn't reference it via a Jinja2 template - an explicit
-        key in the override's own data still takes priority. Likewise, if
-        the override doesn't define its own target, it defaults to the
-        active child, same as a non-overridden command would.
+        override's data only when the override is a pass-through to the same
+        media_player service, since that is the only case where the target
+        accepts the same keys - the commands built by the guided config flow
+        rely on it, as they carry no data of their own. Any other target
+        (a number, an input_select, a script, ...) would reject those keys as
+        extra, so it only receives what the override itself defines; the
+        call's data stays reachable there through the Jinja2 variables. An
+        explicit key in the override's own data always takes priority.
+        Likewise, if the override doesn't define its own target, it defaults
+        to the active child, same as a non-overridden command would.
 
         Args:
             service_name: The name of the media player service to call.
@@ -421,18 +429,28 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
             service_data = {}
 
         if allow_override and service_name in self._cmds:
-            override = dict(self._cmds[service_name])
-            override["data"] = {**service_data, **override.get("data", {})}
+            cmd_override = dict(self._cmds[service_name])
 
-            if "target" not in override and (active_child := self._child_state) is not None:
-                override["target"] = {ATTR_ENTITY_ID: active_child.entity_id}
+            # A templated action isn't known until render time, so it never
+            # qualifies as a pass-through. CONF_SERVICE is the legacy spelling
+            # of CONF_ACTION and may still be around in an older command.
+            action = cmd_override.get(CONF_ACTION) or cmd_override.get(CONF_SERVICE)
+            if isinstance(action, str) and action == f"{MEDIA_PLAYER_DOMAIN}.{service_name}":
+                cmd_override["data"] = {**service_data, **cmd_override.get("data", {})}
 
+            if "target" not in cmd_override and (active_child := self._child_state) is not None:
+                cmd_override["target"] = {ATTR_ENTITY_ID: active_child.entity_id}
+
+            # Commands are stored as raw strings in the config entry, so they
+            # have to be validated here to turn "{{ ... }}" back into a
+            # Template - render_complex() leaves plain strings untouched and
+            # the command's Jinja2 would reach the target service verbatim.
             await async_call_from_config(
                 self.hass,
-                override,
+                cmd_override,
                 variables=service_data,
                 blocking=True,
-                validate_config=False,
+                validate_config=True,
             )
             return
 
@@ -908,9 +926,15 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
             if (value := getattr(self, attr)) is not None:
                 state_attr[attr] = value
 
-        # Use local image proxy if the URL is not HTTPS, as HA runs over HTTPS
-        if ATTR_ENTITY_PICTURE_LOCAL not in state_attr or "https:" not in state_attr[ATTR_ENTITY_PICTURE_LOCAL]:
-            state_attr[ATTR_ENTITY_PICTURE_LOCAL] = self.media_image_local
+        # The frontend prefers entity_picture_local over entity_picture, so it
+        # is only worth publishing for a remote picture served over plain HTTP,
+        # which a browser would refuse to load into an HTTPS page. The picture
+        # usually is the active child's own proxy URL, and proxying that one
+        # again would only make Home Assistant fetch itself.
+        if (image_url := self.media_image_url) is not None:
+            parsed = urlparse(image_url)
+            if parsed.hostname is not None and parsed.scheme != "https":
+                state_attr[ATTR_ENTITY_PICTURE_LOCAL] = self.media_image_local
 
         return state_attr
 

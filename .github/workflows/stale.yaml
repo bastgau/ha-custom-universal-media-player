@@ -7,7 +7,7 @@ on:
   issue_comment:
 
 env:
-  stale_label: stale
+  stale_label: "issue:stale"
 
 jobs:
   stale_action:
