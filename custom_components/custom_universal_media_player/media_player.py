@@ -181,7 +181,7 @@ PLATFORM_SCHEMA = MEDIA_PLAYER_PLATFORM_SCHEMA.extend(  # pyright: ignore[report
 async def async_setup_platform(
     hass: HomeAssistant,
     config: ConfigType,
-    async_add_entities: AddEntitiesCallback,  # noqa: ARG001
+    async_add_entities: AddEntitiesCallback,  # noqa: ARG001 # pylint: disable=unused-argument
     discovery_info: DiscoveryInfoType | None = None,  # pylint: disable=unused-argument  # noqa: ARG001
 ) -> None:
     """Import the YAML platform configuration into a config entry.
@@ -429,17 +429,17 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
             service_data = {}
 
         if allow_override and service_name in self._cmds:
-            override = dict(self._cmds[service_name])
+            cmd_override = dict(self._cmds[service_name])
 
             # A templated action isn't known until render time, so it never
             # qualifies as a pass-through. CONF_SERVICE is the legacy spelling
             # of CONF_ACTION and may still be around in an older command.
-            action = override.get(CONF_ACTION) or override.get(CONF_SERVICE)
+            action = cmd_override.get(CONF_ACTION) or cmd_override.get(CONF_SERVICE)
             if isinstance(action, str) and action == f"{MEDIA_PLAYER_DOMAIN}.{service_name}":
-                override["data"] = {**service_data, **override.get("data", {})}
+                cmd_override["data"] = {**service_data, **cmd_override.get("data", {})}
 
-            if "target" not in override and (active_child := self._child_state) is not None:
-                override["target"] = {ATTR_ENTITY_ID: active_child.entity_id}
+            if "target" not in cmd_override and (active_child := self._child_state) is not None:
+                cmd_override["target"] = {ATTR_ENTITY_ID: active_child.entity_id}
 
             # Commands are stored as raw strings in the config entry, so they
             # have to be validated here to turn "{{ ... }}" back into a
@@ -447,7 +447,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
             # the command's Jinja2 would reach the target service verbatim.
             await async_call_from_config(
                 self.hass,
-                override,
+                cmd_override,
                 variables=service_data,
                 blocking=True,
                 validate_config=True,
