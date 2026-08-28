@@ -722,7 +722,7 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         self._data.setdefault(CONF_COMMANDS, {})
         return self._finalize()
 
-    async def async_step_config_commands(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+    async def async_step_config_commands(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:  # pylint: disable=too-many-locals
         """Handle the entity/action picker step.
 
         Submitting this screen replaces all commands with what is picked
@@ -778,7 +778,7 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
-    def _commands_schema(
+    def _commands_schema(  # pylint: disable=too-many-locals
         self,
         user_input: dict[str, Any] | None = None,
         incomplete_keys: set[str] | None = None,
