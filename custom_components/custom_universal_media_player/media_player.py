@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from copy import copy
+import logging
 from typing import TYPE_CHECKING, Any, override
 from urllib.parse import urlparse
 
@@ -87,7 +88,7 @@ from homeassistant.const import (
     STATE_UNAVAILABLE,
     STATE_UNKNOWN,
 )
-from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
+from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback, valid_entity_id
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.event import (
     TrackTemplate,
@@ -159,6 +160,8 @@ STATES_ORDER = [
 STATES_ORDER_LOOKUP = {state: idx for idx, state in enumerate(STATES_ORDER)}
 STATES_ORDER_IDLE = STATES_ORDER_LOOKUP[MediaPlayerState.IDLE]
 
+_LOGGER = logging.getLogger(__name__)
+
 ATTRS_SCHEMA: Any = cv.schema_with_slug_keys(cv.string)  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType]  # pylint: disable=invalid-name
 CMD_SCHEMA: Any = cv.schema_with_slug_keys(cv.SERVICE_SCHEMA)  # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType] # pylint: disable=invalid-name
 
@@ -168,7 +171,7 @@ PLATFORM_SCHEMA = MEDIA_PLAYER_PLATFORM_SCHEMA.extend(  # pyright: ignore[report
         vol.Optional(CONF_CHILDREN, default=[]): cv.entity_ids,  # pyright: ignore[reportUnknownMemberType]
         vol.Optional(CONF_COMMANDS, default={}): CMD_SCHEMA,
         vol.Optional(CONF_ATTRS, default={}): vol.Or(cv.ensure_list(ATTRS_SCHEMA), ATTRS_SCHEMA),
-        vol.Optional(CONF_BROWSE_MEDIA_ENTITY): cv.string,
+        vol.Optional(CONF_BROWSE_MEDIA_ENTITY): cv.entity_id,
         vol.Optional(CONF_UNIQUE_ID): cv.string,
         vol.Optional(CONF_DEVICE_CLASS): DEVICE_CLASSES_SCHEMA,
         vol.Optional(CONF_ACTIVE_CHILD_TEMPLATE): cv.template,
@@ -176,6 +179,27 @@ PLATFORM_SCHEMA = MEDIA_PLAYER_PLATFORM_SCHEMA.extend(  # pyright: ignore[report
     },
     extra=vol.REMOVE_EXTRA,
 )
+
+
+def _attr_entity_ids_are_valid(entity_part: str | None) -> bool:
+    """Check that an attribute override points at entity_ids and nothing else.
+
+    The entity half of an override is a single entity_id, or several of them
+    joined by "-" (see _entity_lkp). It is not a template: a Jinja2 block put
+    there is read verbatim as an entity_id, which silently resolves to nothing.
+
+    Args:
+        entity_part: The part of the override left of the "|" separator.
+
+    Returns:
+        True if every entity_id in the override is a valid one.
+
+    """
+    if not entity_part:
+        return False
+
+    entity_ids = [entity_id.strip() for entity_id in entity_part.split("-")]
+    return all(entity_ids) and all(valid_entity_id(entity_id) for entity_id in entity_ids)
 
 
 async def async_setup_platform(
@@ -252,6 +276,16 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
             attr: list[str | None] = list(map(str.strip, val.split("|", 1)))
             if len(attr) == 1:
                 attr.append(None)
+            if not _attr_entity_ids_are_valid(attr[0]):
+                _LOGGER.warning(
+                    "%s: ignoring the '%s' attribute override, %r is not an entity_id. "
+                    "An attribute override points at a child entity ('media_player.child' or "
+                    "'media_player.child|volume_level'); it is not a template",
+                    self._attr_name,
+                    key,
+                    val,
+                )
+                continue
             self._attrs[key] = attr
         self._child_state = None
         self._state_template_result = None
@@ -259,6 +293,17 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         self._attr_device_class = config.get(CONF_DEVICE_CLASS)
         self._attr_unique_id = config.get(CONF_UNIQUE_ID)
         self._browse_media_entity = config.get(CONF_BROWSE_MEDIA_ENTITY)
+        if self._browse_media_entity and not valid_entity_id(self._browse_media_entity):
+            # A stale config entry can still hold anything here: the YAML schema
+            # only started rejecting a non-entity_id value in v1.9. Advertising
+            # BROWSE_MEDIA for it would make async_browse_media() raise instead
+            # of falling back to the active child.
+            _LOGGER.warning(
+                "%s: ignoring browse_media_entity, %r is not an entity_id",
+                self._attr_name,
+                self._browse_media_entity,
+            )
+            self._browse_media_entity = None
 
     @override
     async def async_added_to_hass(self) -> None:
@@ -323,7 +368,9 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
 
         depend: Any = copy(self._children)
         for entity in self._attrs.values():
-            depend.append(entity[0])
+            # An override may chain several entities ("a-b"), the way _entity_lkp
+            # reads them back; each one has to be tracked on its own.
+            depend.extend(entity[0].split("-"))
 
         self.async_on_remove(async_track_state_change_event(self.hass, list(set(depend)), _async_on_dependency_update))
 
