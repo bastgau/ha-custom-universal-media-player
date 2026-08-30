@@ -187,22 +187,47 @@ def _category_section(category: str) -> str:
     return f"category_{category}"
 
 
-def _extract_entity_id(command: dict[str, Any]) -> str | None:
-    """Extract a single target entity_id from a command, if there is exactly one.
+def _static_target(command: dict[str, Any]) -> dict[str, Any]:
+    """Return a command's target when it is a plain mapping.
+
+    cv.SERVICE_SCHEMA compiles every "{{ ... }}" into a Template, and it
+    accepts one for the whole target as well as for a single entity_id. What
+    such a value resolves to is only known when the command is called, so
+    there is nothing to check it against here - and a Template raises on the
+    dict and string operations these checks rely on.
 
     Args:
         command: The command dict (action/target/data).
 
     Returns:
-        The single target entity_id, or None if there is none or more than one.
+        The target mapping, or an empty one when the target is templated or
+        absent.
 
     """
-    entity_id = command.get("target", {}).get("entity_id")
+    target = command.get("target")
+    return target if isinstance(target, dict) else {}
+
+
+def _extract_entity_id(command: dict[str, Any]) -> str | None:
+    """Extract a single target entity_id from a command, if there is exactly one.
+
+    A templated entity_id has no single value until the command runs, so it
+    counts as "no static entity_id" rather than as one.
+
+    Args:
+        command: The command dict (action/target/data).
+
+    Returns:
+        The single target entity_id, or None if there is none, more than one,
+        or it is templated.
+
+    """
+    entity_id = _static_target(command).get("entity_id")
 
     if isinstance(entity_id, list):
-        return entity_id[0] if len(entity_id) == 1 else None
+        entity_id = entity_id[0] if len(entity_id) == 1 else None
 
-    return entity_id or None
+    return entity_id if isinstance(entity_id, str) and entity_id else None
 
 
 def _format_problems(problems: list[str]) -> str:
@@ -269,8 +294,12 @@ def _is_simple_command(command: dict[str, Any] | None) -> bool:
     if set(command) - {"action", "target"}:
         return False
 
-    target = command.get("target", {})
-    if set(target) - {"entity_id"}:
+    # A templated action or target is only resolved at call time, so it can
+    # never be reduced to the entity + action pair the guided picker shows.
+    if not isinstance(command.get("action"), str):
+        return False
+
+    if set(_static_target(command)) - {"entity_id"}:
         return False
 
     return _extract_entity_id(command) is not None
@@ -982,10 +1011,13 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         unknown: set[str] = set()
 
         for command in commands.values():
-            entity_id = command.get("target", {}).get("entity_id")
+            entity_id = _static_target(command).get("entity_id")
             entity_ids = entity_id if isinstance(entity_id, list) else [entity_id] if entity_id else []
 
             for candidate in entity_ids:
+                if isinstance(candidate, Template):
+                    # Which entity it points at is only known at call time.
+                    continue
                 if not candidate or self.hass.states.get(candidate) is None:
                     unknown.add(candidate or "(empty)")
 
@@ -1006,7 +1038,8 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
 
         for command in commands.values():
             action = command.get("action")
-            if not action or "." not in action:
+            if not isinstance(action, str) or "." not in action:
+                # A templated action names its service only at call time.
                 continue
 
             domain, _, service = action.partition(".")
