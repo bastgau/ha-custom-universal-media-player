@@ -187,6 +187,52 @@ def _category_section(category: str) -> str:
     return f"category_{category}"
 
 
+class _BlockStringDumper(yaml.SafeDumper):
+    """A SafeDumper that writes a multi-line string as a "|" block scalar.
+
+    Left to itself, PyYAML renders a string holding newlines as a
+    double-quoted scalar, with escaped newlines and line continuations. A
+    templated command survives the round-trip that way, but comes back
+    unreadable - and these screens exist to be edited by hand.
+    """
+
+
+def _represent_str(dumper: yaml.SafeDumper, data: str) -> yaml.ScalarNode:
+    """Represent a string, using a block scalar when it spans several lines.
+
+    Args:
+        dumper: The dumper doing the serialization.
+        data: The string to represent.
+
+    Returns:
+        The scalar node for that string.
+
+    """
+    return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|" if "\n" in data else None)
+
+
+_BlockStringDumper.add_representer(str, _represent_str)
+
+
+def _to_yaml(value: dict[str, Any]) -> str:
+    """Serialize a command or attribute mapping for the raw YAML screens.
+
+    The json round-trip drops anything that is not plain JSON data (an
+    OrderedDict, a tuple) so the dump stays free of Python-specific tags.
+
+    Args:
+        value: The mapping to serialize.
+
+    Returns:
+        The YAML text, or an empty string when there is nothing to show.
+
+    """
+    if not value:
+        return ""
+
+    return yaml.dump(json.loads(json.dumps(value)), Dumper=_BlockStringDumper, sort_keys=False, allow_unicode=True)
+
+
 def _static_target(command: dict[str, Any]) -> dict[str, Any]:
     """Return a command's target when it is a plain mapping.
 
@@ -1069,9 +1115,7 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
             preview_yaml = user_input.get(CONF_COMMANDS, "")
         else:
             existing_commands: dict[str, Any] = self._data.get(CONF_COMMANDS, {})
-            preview_yaml = (
-                yaml.safe_dump(json.loads(json.dumps(existing_commands)), sort_keys=False) if existing_commands else ""
-            )
+            preview_yaml = _to_yaml(existing_commands)
 
         schema = vol.Schema({vol.Optional(CONF_COMMANDS): TextSelector(TextSelectorConfig(multiline=True))})
         return schema, preview_yaml
@@ -1122,9 +1166,7 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
             preview_yaml = user_input.get(CONF_ATTRS, "") if user_input else ""
         else:
             existing_attrs: dict[str, Any] = self._data.get(CONF_ATTRS, {})
-            preview_yaml = (
-                yaml.safe_dump(json.loads(json.dumps(existing_attrs)), sort_keys=False) if existing_attrs else ""
-            )
+            preview_yaml = _to_yaml(existing_attrs)
 
         description_placeholders = {"problems": _format_problems(problems)}
 
