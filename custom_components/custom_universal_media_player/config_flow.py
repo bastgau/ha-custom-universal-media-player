@@ -280,6 +280,7 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for the custom universal media player."""
 
     VERSION = 1
+    MINOR_VERSION = 2
 
     def __init__(self) -> None:
         """Initialize the config flow state."""
@@ -1198,8 +1199,6 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
 
         """
         unique_id = import_data.get(CONF_UNIQUE_ID) or slugify(import_data[CONF_NAME])
-        await self.async_set_unique_id(unique_id)
-        self._abort_if_unique_id_configured()
 
         active_child_template = import_data.get(CONF_ACTIVE_CHILD_TEMPLATE)
         state_template = import_data.get(CONF_STATE_TEMPLATE)
@@ -1227,5 +1226,14 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
             translation_key="deprecated_yaml",
             translation_placeholders={"integration_title": "Custom universal media player"},
         )
+
+        await self.async_set_unique_id(unique_id)
+
+        # The YAML stays the source of truth for as long as it is there: pass
+        # the freshly read configuration as updates so an edit to the YAML is
+        # picked up on the next restart, and so an entry written by a version
+        # that mangled it is rewritten rather than kept forever. Without this
+        # the very first import wins and nothing can ever correct it.
+        self._abort_if_unique_id_configured(updates=data)
 
         return self.async_create_entry(title=data[CONF_NAME], data=data)
