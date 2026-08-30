@@ -409,6 +409,65 @@ def check_attributes_validation() -> None:
     asyncio.run(_check_missing_attribute_not_in_ui())
 
 
+def check_templated_commands_do_not_crash() -> None:
+    """Regression test: a templated action or target must not crash the review.
+
+    cv.SERVICE_SCHEMA compiles every "{{ ... }}" into a Template, including a
+    target's entity_id and the whole target. The review screen used to hand
+    those straight to hass.states.get() ("'Template' object has no attribute
+    'lower'"), to `"." not in action` ("not iterable") and to set() ("not
+    iterable"). What they resolve to is only known at call time, so they must
+    be skipped, not reported and not crashed on.
+    """
+    import custom_universal_media_player.config_flow as cf  # noqa: PLC0415
+
+    from homeassistant.core import HomeAssistant  # noqa: PLC0415
+    import homeassistant.helpers.config_validation as cv  # noqa: PLC0415
+
+    templated = "{% if is_state('input_select.x', 'a') %}media_player.a{% else %}media_player.b{% endif %}"
+
+    async def _check() -> None:
+        hass = HomeAssistant("/tmp")  # noqa: S108
+        hass.services.async_register("media_player", "media_play", lambda _call: None)
+        flow = cf.CustomUniversalMediaPlayerConfigFlow()
+        flow.hass = hass
+
+        commands = cv.schema_with_slug_keys(cv.SERVICE_SCHEMA)(
+            {
+                "media_play": {"action": "media_player.media_play", "target": {"entity_id": templated}},
+                "turn_off": {"action": templated.replace("media_player.", "script.")},
+                "media_stop": {"action": "media_player.media_play", "target": "{{ {'entity_id': 'x'} }}"},
+            },
+        )
+
+        for label, call in (
+            ("_find_unknown_entities", lambda: flow._find_unknown_entities(commands)),  # noqa: SLF001
+            ("_find_unknown_actions", lambda: flow._find_unknown_actions(commands)),  # noqa: SLF001
+            ("_extract_entity_id", lambda: cf._extract_entity_id(commands["media_play"])),  # noqa: SLF001
+            ("_is_simple_command", lambda: cf._is_simple_command(commands["media_play"])),  # noqa: SLF001
+        ):
+            try:
+                result = call()
+            except (AttributeError, TypeError) as err:
+                report(f"templated command: {label} does not crash", False, f"{type(err).__name__}: {err}")
+                continue
+            report(f"templated command: {label} does not crash", True)
+            if label.startswith("_find_unknown"):
+                report(
+                    f"templated command: {label} reports nothing",
+                    result == set(),
+                    f"expected an empty set, got {result!r}",
+                )
+
+        report(
+            "templated command: a templated target is not a simple command",
+            cf._is_simple_command(commands["media_play"]) is False,  # noqa: SLF001
+            "a templated target cannot be shown in the guided picker",
+        )
+
+    asyncio.run(_check())
+
+
 def check_active_child_template_accepts_none() -> None:
     """Regression test: active_child_template must accept a None result.
 
@@ -470,6 +529,7 @@ def main() -> int:
     check_empty_entity_id_does_not_crash()
     check_command_validation_is_cumulative()
     check_attributes_validation()
+    check_templated_commands_do_not_crash()
     check_active_child_template_accepts_none()
 
     print()
