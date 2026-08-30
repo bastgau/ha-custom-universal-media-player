@@ -1152,7 +1152,11 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
                     else:
                         unknown_attrs = self._find_unknown_attribute_names(parsed_attrs)
                         if unknown_attrs:
-                            _LOGGER.warning(
+                            # Informational, not a problem: a media_player only
+                            # exposes its media_* and entity_picture attributes
+                            # while it is playing, so an override naming one
+                            # reads as missing whenever the child is idle.
+                            _LOGGER.info(
                                 "Attributes not currently present on their referenced entity "
                                 "(may be normal depending on state): %s",
                                 ", ".join(sorted(unknown_attrs)),
