@@ -187,22 +187,93 @@ def _category_section(category: str) -> str:
     return f"category_{category}"
 
 
-def _extract_entity_id(command: dict[str, Any]) -> str | None:
-    """Extract a single target entity_id from a command, if there is exactly one.
+class _BlockStringDumper(yaml.SafeDumper):
+    """A SafeDumper that writes a multi-line string as a "|" block scalar.
+
+    Left to itself, PyYAML renders a string holding newlines as a
+    double-quoted scalar, with escaped newlines and line continuations. A
+    templated command survives the round-trip that way, but comes back
+    unreadable - and these screens exist to be edited by hand.
+    """
+
+
+def _represent_str(dumper: yaml.SafeDumper, data: str) -> yaml.ScalarNode:
+    """Represent a string, using a block scalar when it spans several lines.
+
+    Args:
+        dumper: The dumper doing the serialization.
+        data: The string to represent.
+
+    Returns:
+        The scalar node for that string.
+
+    """
+    return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|" if "\n" in data else None)
+
+
+_BlockStringDumper.add_representer(str, _represent_str)
+
+
+def _to_yaml(value: dict[str, Any]) -> str:
+    """Serialize a command or attribute mapping for the raw YAML screens.
+
+    The json round-trip drops anything that is not plain JSON data (an
+    OrderedDict, a tuple) so the dump stays free of Python-specific tags.
+
+    Args:
+        value: The mapping to serialize.
+
+    Returns:
+        The YAML text, or an empty string when there is nothing to show.
+
+    """
+    if not value:
+        return ""
+
+    return yaml.dump(json.loads(json.dumps(value)), Dumper=_BlockStringDumper, sort_keys=False, allow_unicode=True)
+
+
+def _static_target(command: dict[str, Any]) -> dict[str, Any]:
+    """Return a command's target when it is a plain mapping.
+
+    cv.SERVICE_SCHEMA compiles every "{{ ... }}" into a Template, and it
+    accepts one for the whole target as well as for a single entity_id. What
+    such a value resolves to is only known when the command is called, so
+    there is nothing to check it against here - and a Template raises on the
+    dict and string operations these checks rely on.
 
     Args:
         command: The command dict (action/target/data).
 
     Returns:
-        The single target entity_id, or None if there is none or more than one.
+        The target mapping, or an empty one when the target is templated or
+        absent.
 
     """
-    entity_id = command.get("target", {}).get("entity_id")
+    target = command.get("target")
+    return target if isinstance(target, dict) else {}
+
+
+def _extract_entity_id(command: dict[str, Any]) -> str | None:
+    """Extract a single target entity_id from a command, if there is exactly one.
+
+    A templated entity_id has no single value until the command runs, so it
+    counts as "no static entity_id" rather than as one.
+
+    Args:
+        command: The command dict (action/target/data).
+
+    Returns:
+        The single target entity_id, or None if there is none, more than one,
+        or it is templated.
+
+    """
+    entity_id = _static_target(command).get("entity_id")
 
     if isinstance(entity_id, list):
-        return entity_id[0] if len(entity_id) == 1 else None
+        entity_id = entity_id[0] if len(entity_id) == 1 else None
 
-    return entity_id or None
+    return entity_id if isinstance(entity_id, str) and entity_id else None
 
 
 def _format_problems(problems: list[str]) -> str:
@@ -269,8 +340,12 @@ def _is_simple_command(command: dict[str, Any] | None) -> bool:
     if set(command) - {"action", "target"}:
         return False
 
-    target = command.get("target", {})
-    if set(target) - {"entity_id"}:
+    # A templated action or target is only resolved at call time, so it can
+    # never be reduced to the entity + action pair the guided picker shows.
+    if not isinstance(command.get("action"), str):
+        return False
+
+    if set(_static_target(command)) - {"entity_id"}:
         return False
 
     return _extract_entity_id(command) is not None
@@ -280,6 +355,7 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for the custom universal media player."""
 
     VERSION = 1
+    MINOR_VERSION = 2
 
     def __init__(self) -> None:
         """Initialize the config flow state."""
@@ -633,21 +709,36 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         return isinstance(result, str)
 
     def _active_child_template_result_is_valid(self, raw_template: str) -> bool:
-        """Check that active_child_template renders to an existing media_player entity_id.
+        """Check that active_child_template renders to a child entity_id, or to None.
+
+        Unlike state_template, None is a meaningful result here: the field's
+        own description - and the upstream universal media player it comes
+        from - document it as "the entity_id of the child selected as active,
+        or None to use the default behavior". Rendering nothing at all says
+        the same thing, since the entity only tests the result for
+        truthiness. Anything else that is not a string (a bare boolean such
+        as "{{ is_state(...) }}", a number) is still rejected.
 
         Args:
             raw_template: The template source to render and check.
 
         Returns:
-            True if the template renders to a string that is empty, or the
-            entity_id of an existing media_player entity, False otherwise
+            True if the template renders to None, to an empty string, or to
+            the entity_id of an existing media_player entity, False otherwise
             (including if the template fails to render).
 
         """
-        if not self._template_result_is_valid(raw_template):
+        try:
+            result = cv.template(raw_template).async_render(parse_result=True)
+        except TemplateError:
             return False
 
-        result = cv.template(raw_template).async_render(parse_result=True)
+        if result is None:
+            return True
+
+        if not isinstance(result, str):
+            return False
+
         if not result:
             return True
 
@@ -966,10 +1057,13 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         unknown: set[str] = set()
 
         for command in commands.values():
-            entity_id = command.get("target", {}).get("entity_id")
+            entity_id = _static_target(command).get("entity_id")
             entity_ids = entity_id if isinstance(entity_id, list) else [entity_id] if entity_id else []
 
             for candidate in entity_ids:
+                if isinstance(candidate, Template):
+                    # Which entity it points at is only known at call time.
+                    continue
                 if not candidate or self.hass.states.get(candidate) is None:
                     unknown.add(candidate or "(empty)")
 
@@ -990,7 +1084,8 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
 
         for command in commands.values():
             action = command.get("action")
-            if not action or "." not in action:
+            if not isinstance(action, str) or "." not in action:
+                # A templated action names its service only at call time.
                 continue
 
             domain, _, service = action.partition(".")
@@ -1020,9 +1115,7 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
             preview_yaml = user_input.get(CONF_COMMANDS, "")
         else:
             existing_commands: dict[str, Any] = self._data.get(CONF_COMMANDS, {})
-            preview_yaml = (
-                yaml.safe_dump(json.loads(json.dumps(existing_commands)), sort_keys=False) if existing_commands else ""
-            )
+            preview_yaml = _to_yaml(existing_commands)
 
         schema = vol.Schema({vol.Optional(CONF_COMMANDS): TextSelector(TextSelectorConfig(multiline=True))})
         return schema, preview_yaml
@@ -1059,7 +1152,11 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
                     else:
                         unknown_attrs = self._find_unknown_attribute_names(parsed_attrs)
                         if unknown_attrs:
-                            _LOGGER.warning(
+                            # Informational, not a problem: a media_player only
+                            # exposes its media_* and entity_picture attributes
+                            # while it is playing, so an override naming one
+                            # reads as missing whenever the child is idle.
+                            _LOGGER.info(
                                 "Attributes not currently present on their referenced entity "
                                 "(may be normal depending on state): %s",
                                 ", ".join(sorted(unknown_attrs)),
@@ -1073,9 +1170,7 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
             preview_yaml = user_input.get(CONF_ATTRS, "") if user_input else ""
         else:
             existing_attrs: dict[str, Any] = self._data.get(CONF_ATTRS, {})
-            preview_yaml = (
-                yaml.safe_dump(json.loads(json.dumps(existing_attrs)), sort_keys=False) if existing_attrs else ""
-            )
+            preview_yaml = _to_yaml(existing_attrs)
 
         description_placeholders = {"problems": _format_problems(problems)}
 
@@ -1198,8 +1293,6 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
 
         """
         unique_id = import_data.get(CONF_UNIQUE_ID) or slugify(import_data[CONF_NAME])
-        await self.async_set_unique_id(unique_id)
-        self._abort_if_unique_id_configured()
 
         active_child_template = import_data.get(CONF_ACTIVE_CHILD_TEMPLATE)
         state_template = import_data.get(CONF_STATE_TEMPLATE)
@@ -1227,5 +1320,14 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
             translation_key="deprecated_yaml",
             translation_placeholders={"integration_title": "Custom universal media player"},
         )
+
+        await self.async_set_unique_id(unique_id)
+
+        # The YAML stays the source of truth for as long as it is there: pass
+        # the freshly read configuration as updates so an edit to the YAML is
+        # picked up on the next restart, and so an entry written by a version
+        # that mangled it is rewritten rather than kept forever. Without this
+        # the very first import wins and nothing can ever correct it.
+        self._abort_if_unique_id_configured(updates=data)
 
         return self.async_create_entry(title=data[CONF_NAME], data=data)
