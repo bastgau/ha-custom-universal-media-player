@@ -409,6 +409,41 @@ def check_attributes_validation() -> None:
     asyncio.run(_check_missing_attribute_not_in_ui())
 
 
+def check_yaml_preview_is_readable() -> None:
+    """Regression test: a multi-line value must redisplay as a block scalar.
+
+    PyYAML's default for a string holding newlines is a double-quoted scalar
+    with "\\n" escapes and line continuations. A templated command survived
+    that round-trip, but came back unreadable - and these screens exist to be
+    edited by hand.
+    """
+    import custom_universal_media_player.config_flow as cf  # noqa: PLC0415
+
+    import yaml  # noqa: PLC0415
+
+    commands = {
+        "turn_off": {"action": "{% if is_state('input_select.x', 'a') %}\nscript.a\n{% else %}\nscript.b\n{% endif %}"},
+        "volume_set": {"action": "media_player.volume_set", "data": {"volume_level": "{{ volume_level }}"}},
+    }
+    preview = cf._to_yaml(commands)  # noqa: SLF001
+
+    report(
+        "yaml preview: a multi-line value uses a block scalar",
+        "action: |" in preview and "\\n" not in preview,
+        f"expected a block scalar, got:\n{preview}",
+    )
+    report(
+        "yaml preview: what is redisplayed parses back unchanged",
+        yaml.safe_load(preview) == commands,
+        f"round-trip changed the commands:\n{preview}",
+    )
+    report(
+        "yaml preview: an empty mapping stays an empty textarea",
+        cf._to_yaml({}) == "",  # noqa: SLF001
+        "an empty mapping must not render as '{}'",
+    )
+
+
 def check_templated_commands_do_not_crash() -> None:
     """Regression test: a templated action or target must not crash the review.
 
@@ -529,6 +564,7 @@ def main() -> int:
     check_empty_entity_id_does_not_crash()
     check_command_validation_is_cumulative()
     check_attributes_validation()
+    check_yaml_preview_is_readable()
     check_templated_commands_do_not_crash()
     check_active_child_template_accepts_none()
 
