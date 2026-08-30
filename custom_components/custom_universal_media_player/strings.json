@@ -202,7 +202,7 @@
       "incomplete_command": "Incorrect configuration to fix : pick both an entity and an action, or leave both blank",
       "invalid_commands": "Invalid configuration, see details below.",
       "invalid_template_result": "This template must render to a plain state value, not a boolean, number or other type.",
-      "invalid_active_child_template_result": "This template must render to the entity_id of an existing media player, or be left empty."
+      "invalid_active_child_template_result": "This template must render to the entity_id of an existing media player, or to None (or nothing at all) to use the default behavior."
     },
     "abort": {
       "already_configured": "Device is already configured",

@@ -634,21 +634,36 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         return isinstance(result, str)
 
     def _active_child_template_result_is_valid(self, raw_template: str) -> bool:
-        """Check that active_child_template renders to an existing media_player entity_id.
+        """Check that active_child_template renders to a child entity_id, or to None.
+
+        Unlike state_template, None is a meaningful result here: the field's
+        own description - and the upstream universal media player it comes
+        from - document it as "the entity_id of the child selected as active,
+        or None to use the default behavior". Rendering nothing at all says
+        the same thing, since the entity only tests the result for
+        truthiness. Anything else that is not a string (a bare boolean such
+        as "{{ is_state(...) }}", a number) is still rejected.
 
         Args:
             raw_template: The template source to render and check.
 
         Returns:
-            True if the template renders to a string that is empty, or the
-            entity_id of an existing media_player entity, False otherwise
+            True if the template renders to None, to an empty string, or to
+            the entity_id of an existing media_player entity, False otherwise
             (including if the template fails to render).
 
         """
-        if not self._template_result_is_valid(raw_template):
+        try:
+            result = cv.template(raw_template).async_render(parse_result=True)
+        except TemplateError:
             return False
 
-        result = cv.template(raw_template).async_render(parse_result=True)
+        if result is None:
+            return True
+
+        if not isinstance(result, str):
+            return False
+
         if not result:
             return True
 
