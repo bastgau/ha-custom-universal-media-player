@@ -171,7 +171,7 @@ PLATFORM_SCHEMA = MEDIA_PLAYER_PLATFORM_SCHEMA.extend(  # pyright: ignore[report
         vol.Optional(CONF_CHILDREN, default=[]): cv.entity_ids,  # pyright: ignore[reportUnknownMemberType]
         vol.Optional(CONF_COMMANDS, default={}): CMD_SCHEMA,
         vol.Optional(CONF_ATTRS, default={}): vol.Or(cv.ensure_list(ATTRS_SCHEMA), ATTRS_SCHEMA),
-        vol.Optional(CONF_BROWSE_MEDIA_ENTITY): cv.entity_id,
+        vol.Optional(CONF_BROWSE_MEDIA_ENTITY): cv.string,
         vol.Optional(CONF_UNIQUE_ID): cv.string,
         vol.Optional(CONF_DEVICE_CLASS): DEVICE_CLASSES_SCHEMA,
         vol.Optional(CONF_ACTIVE_CHILD_TEMPLATE): cv.template,
@@ -294,10 +294,10 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         self._attr_unique_id = config.get(CONF_UNIQUE_ID)
         self._browse_media_entity = config.get(CONF_BROWSE_MEDIA_ENTITY)
         if self._browse_media_entity and not valid_entity_id(self._browse_media_entity):
-            # A stale config entry can still hold anything here: the YAML schema
-            # only started rejecting a non-entity_id value in v1.9. Advertising
-            # BROWSE_MEDIA for it would make async_browse_media() raise instead
-            # of falling back to the active child.
+            # browse_media_entity is a plain entity_id, and cv.string lets
+            # anything through - as it does upstream. Advertising BROWSE_MEDIA
+            # for a value that is not one would make async_browse_media() raise
+            # instead of falling back to the active child.
             _LOGGER.warning(
                 "%s: ignoring browse_media_entity, %r is not an entity_id",
                 self._attr_name,
