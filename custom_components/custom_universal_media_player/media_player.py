@@ -294,10 +294,11 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         self._attr_unique_id = config.get(CONF_UNIQUE_ID)
         self._browse_media_entity = config.get(CONF_BROWSE_MEDIA_ENTITY)
         if self._browse_media_entity and not valid_entity_id(self._browse_media_entity):
-            # A stale config entry can still hold anything here: the YAML schema
-            # only started rejecting a non-entity_id value in v1.9. Advertising
-            # BROWSE_MEDIA for it would make async_browse_media() raise instead
-            # of falling back to the active child.
+            # The schema and the UI's entity picker both ask for an entity_id,
+            # but a config entry imported before they did can still hold
+            # anything. Advertising BROWSE_MEDIA for it would make
+            # async_browse_media() raise instead of falling back to the
+            # active child.
             _LOGGER.warning(
                 "%s: ignoring browse_media_entity, %r is not an entity_id",
                 self._attr_name,
