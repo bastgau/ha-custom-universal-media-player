@@ -1,0 +1,10 @@
+# The Home Assistant test helpers in this directory are vendored verbatim from
+# home-assistant/core (see tests/README.md). They are linted and formatted
+# upstream with the core settings, so both are turned off here to keep them
+# byte-for-byte refreshable. The tests of this repository live in
+# tests/components/ and are covered by tests/components/ruff.toml.
+extend = "../pyproject.toml"
+line-length = 88
+
+[lint]
+select = []

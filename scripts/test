@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Run the test suite. Any argument is forwarded to pytest.
+
+set -e
+
+cd "$(dirname "$0")/.."
+
+python3 -m pytest "$@"

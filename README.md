@@ -219,6 +219,20 @@ Note that `volume_level` is expected in the `0`-`1` range on both sides. If the 
 
 Found a bug or have a feature request? Please open an [issue](https://github.com/bastgau/ha-custom-universal-media-player/issues) on GitHub.
 
+### Running the tests
+
+The test suite runs against the real Home Assistant test harness: the core test
+helpers are vendored under `tests/`, from the core version pinned in
+`requirements.txt`.
+
+```bash
+scripts/setup   # installs requirements_test.txt
+scripts/test
+```
+
+See [tests/README.md](tests/README.md) for the layout, how to refresh the
+vendored helpers and what the shared fixtures offer.
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE).

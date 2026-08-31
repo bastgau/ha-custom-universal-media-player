@@ -1,6 +1,7 @@
 # artifacts
 __pycache__
 .pytest*
+.ruff_cache
 *.egg-info
 */build/*
 */dist/*
@@ -8,6 +9,7 @@ __pycache__
 # misc
 .coverage
 coverage.xml
+htmlcov
 
 # Home Assistant configuration
 config/*
