@@ -1,0 +1,26 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  pytest:
+    name: "Run the test suite"
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: "Checkout the repository"
+        uses: "actions/checkout@v4"
+
+      - name: "Set up Python"
+        uses: "actions/setup-python@v5"
+        with:
+          python-version: "3.14"
+          cache: "pip"
+          cache-dependency-path: "requirements_test.txt"
+
+      - name: "Install the dependencies"
+        run: "scripts/setup"
+
+      - name: "Run the tests"
+        run: "scripts/test --cov --cov-report=term-missing"
