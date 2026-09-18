@@ -1,4 +1,4 @@
-# Vendored from home-assistant/core 2026.7.1 - tests/typing.py
+# Vendored from home-assistant/core 2026.9.3 - tests/typing.py
 # Licensed under the Apache License 2.0, see tests/README.md.
 # Do not edit by hand: run `python3 scripts/fetch_ha_test_helpers` instead.
 """Typing helpers for Home Assistant tests."""
@@ -22,7 +22,7 @@ class MockHAClientWebSocket(ClientWebSocketResponse):
 
     client: TestClient
     send_json_auto_id: Callable[[dict[str, Any]], Coroutine[Any, Any, None]]
-    remove_device: Callable[[str, str], Coroutine[Any, Any, Any]]
+    remove_device: Callable[[str], Coroutine[Any, Any, Any]]
 
 
 type ClientSessionGenerator = Callable[..., Coroutine[Any, Any, TestClient]]

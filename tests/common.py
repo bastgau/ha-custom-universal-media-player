@@ -1,4 +1,4 @@
-# Vendored from home-assistant/core 2026.7.1 - tests/common.py
+# Vendored from home-assistant/core 2026.9.3 - tests/common.py
 # Licensed under the Apache License 2.0, see tests/README.md.
 # Do not edit by hand: run `python3 scripts/fetch_ha_test_helpers` instead.
 """Test the helper method for writing tests."""
@@ -295,6 +295,7 @@ async def async_test_home_assistant(
             )
         },
     )
+    hass.config_entries._initialized.set()
     hass.bus.async_listen_once(
         EVENT_HOMEASSISTANT_STOP,
         hass.config_entries._async_shutdown,
@@ -680,7 +681,8 @@ def mock_registry(
     if mock_entries is None:
         mock_entries = {}
     registry.deleted_entities = {}
-    registry.entities = er.EntityRegistryItems()
+    registry.entities = er.EntityRegistryItems(hass)
+    registry.settings = er.EntityRegistrySettings()
     registry._entities_data = registry.entities.data
     for key, entry in mock_entries.items():
         registry.entities[key] = entry
@@ -747,6 +749,7 @@ def mock_area_registry(
 def mock_device_registry(
     hass: HomeAssistant,
     mock_entries: dict[str, dr.DeviceEntry] | None = None,
+    mock_child_entries: dict[str, dr.ChildDeviceEntry] | None = None,
 ) -> dr.DeviceRegistry:
     """Mock the Device Registry.
 
@@ -760,13 +763,21 @@ def mock_device_registry(
     fixture instead.
     """
     registry = dr.DeviceRegistry(hass)
-    registry.devices = dr.ActiveDeviceRegistryItems()
-    registry._device_data = registry.devices.data
+    registry._devices = dr.ActiveDeviceRegistryItems()
+    registry.devices = registry._devices.values()
+    registry._device_data = registry._devices.data
+    registry._child_devices = dr.ChildDeviceRegistryItems()
+    registry.child_devices = registry._child_devices.values()
+    registry._child_device_data = registry._child_devices.data
     if mock_entries is None:
         mock_entries = {}
     for key, entry in mock_entries.items():
-        registry.devices[key] = entry
-    registry.deleted_devices = dr.DeviceRegistryItems()
+        registry._devices[key] = entry
+    if mock_child_entries is None:
+        mock_child_entries = {}
+    for key, child_entry in mock_child_entries.items():
+        registry._child_devices[key] = child_entry
+    registry._deleted_devices = dr.DeletedDeviceRegistryItems()
 
     hass.data[dr.DATA_REGISTRY] = registry
     return registry
