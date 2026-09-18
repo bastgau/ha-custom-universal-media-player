@@ -1,4 +1,4 @@
-# Vendored from home-assistant/core 2026.7.1 - tests/testing_config/custom_components/test_constant_deprecation/__init__.py
+# Vendored from home-assistant/core 2026.9.3 - tests/testing_config/custom_components/test_constant_deprecation/__init__.py
 # Licensed under the Apache License 2.0, see tests/README.md.
 # Do not edit by hand: run `python3 scripts/fetch_ha_test_helpers` instead.
 """Test deprecated constants custom integration."""
