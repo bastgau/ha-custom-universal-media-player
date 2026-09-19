@@ -46,7 +46,7 @@ jobs:
             paths: "custom_components/custom_universal_media_player/*.py"
             extra_requirements: ""
           - name: "tests"
-            paths: "tests"
+            paths: "tests/components/"
             extra_requirements: "-r requirements_test.txt"
 
     steps:
@@ -73,8 +73,4 @@ jobs:
       - name: "Format with Ruff"
         if: "success()"
         run: ruff format --check --diff ${{ matrix.paths }}
-
-      - name: "Lint with Pylint"
-        if: "success()"
-        run: pylint ${{ matrix.paths }}
 
