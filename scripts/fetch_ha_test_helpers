@@ -1,0 +1,132 @@
+#!/usr/bin/env python3
+"""Vendor the Home Assistant core test helpers into tests/.
+
+Home Assistant does not publish its test helpers (``MockConfigEntry``, the
+``hass`` fixture, ``async_fire_time_changed``, ...) as a package, they only
+live in the core repository under https://github.com/home-assistant/core/tree/dev/tests
+
+This script downloads them from the core tag matching the ``homeassistant``
+pin in requirements.txt, so the harness the tests run against always matches
+the Home Assistant version the integration targets.
+
+Run it from the repository root:
+
+    python3 scripts/fetch_ha_test_helpers
+
+Re-run it after bumping the ``homeassistant`` pin, then commit the result.
+"""
+
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+import re
+import sys
+from urllib.error import HTTPError
+from urllib.request import urlopen
+
+RAW_URL = "https://raw.githubusercontent.com/home-assistant/core/{version}/{path}"
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+REQUIREMENTS = REPO_ROOT / "requirements.txt"
+TESTS_DIR = REPO_ROOT / "tests"
+VERSION_STAMP = TESTS_DIR / "HA_CORE_VERSION"
+
+# Every core module the vendored conftest.py needs, relative to the core repo.
+# They keep their layout so their relative imports ("from . import patch_time",
+# "from .testing_config.custom_components...") resolve unchanged.
+FILES: tuple[str, ...] = (
+    "tests/__init__.py",
+    "tests/common.py",
+    "tests/conftest.py",
+    "tests/ignore_uncaught_exceptions.py",
+    "tests/patch_json.py",
+    "tests/patch_recorder.py",
+    "tests/patch_time.py",
+    "tests/syrupy.py",
+    "tests/typing.py",
+    "tests/test_util/__init__.py",
+    "tests/test_util/aiohttp.py",
+    "tests/testing_config/__init__.py",
+    "tests/testing_config/custom_components/__init__.py",
+    "tests/testing_config/custom_components/test_constant_deprecation/__init__.py",
+)
+
+HEADER = (
+    "# Vendored from home-assistant/core {version} - {path}\n"
+    "# Licensed under the Apache License 2.0, see tests/README.md.\n"
+    "# Do not edit by hand: run `python3 scripts/fetch_ha_test_helpers` instead.\n"
+)
+
+
+def read_pinned_version() -> str:
+    """Return the homeassistant version pinned in requirements.txt.
+
+    Returns:
+        The pinned version, e.g. "2026.7.1".
+
+    Raises:
+        SystemExit: If requirements.txt carries no exact homeassistant pin.
+
+    """
+    content = REQUIREMENTS.read_text(encoding="utf-8")
+    match = re.search(r"^homeassistant==(?P<version>.+)$", content, re.MULTILINE)
+    if match is None:
+        sys.exit(f"No 'homeassistant==<version>' pin found in {REQUIREMENTS}")
+    return match.group("version").strip()
+
+
+def fetch(version: str, path: str) -> bytes:
+    """Download a single file from the core repository.
+
+    Args:
+        version: The core tag to download from.
+        path: The file path, relative to the core repository root.
+
+    Returns:
+        The file's raw content.
+
+    Raises:
+        SystemExit: If the file cannot be downloaded.
+
+    """
+    url = RAW_URL.format(version=version, path=path)
+    try:
+        with urlopen(url, timeout=60) as response:  # noqa: S310
+            return response.read()
+    except HTTPError as err:
+        sys.exit(f"Failed to download {url}: HTTP {err.code}")
+
+
+def main() -> int:
+    """Download every vendored helper and write it under tests/.
+
+    Returns:
+        The process exit code.
+
+    """
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--version",
+        help="Core tag to vendor from (defaults to the requirements.txt pin).",
+    )
+    args = parser.parse_args()
+
+    version = args.version or read_pinned_version()
+    print(f"Vendoring Home Assistant test helpers from core {version}")
+
+    for path in FILES:
+        content = fetch(version, path)
+        destination = REPO_ROOT / path
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        header = HEADER.format(version=version, path=path).encode("utf-8")
+        destination.write_bytes(header + content)
+        print(f"  {path} ({len(content)} bytes)")
+
+    VERSION_STAMP.write_text(f"{version}\n", encoding="utf-8")
+    print(f"Wrote {VERSION_STAMP.relative_to(REPO_ROOT)}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -85,6 +85,10 @@ The integration is configured through the Home Assistant UI (config flow), no YA
 
 Existing YAML-based setups (`media_player: - platform: custom_universal_media_player`) are still imported automatically into a config entry, with a repair issue flagged to migrate away from YAML. Please check the notice of the [universal media player](https://www.home-assistant.io/integrations/universal/#usage-examples) for the underlying attribute/command semantics.
 
+For as long as the YAML block is there it stays the source of truth: it is re-read on every restart and the config entry it created is updated to match, so an edit to the YAML takes effect. The flip side is that changes made to an imported entry through the UI are overwritten at the next restart - remove the YAML block first if you want to configure it from the UI.
+
+Only `state_template`, `active_child_template` and the `data`/`target`/`action` of a command accept a template - same as the upstream [universal media player](https://www.home-assistant.io/integrations/universal/) this integration forks. `browse_media_entity` and the values under `attributes` are read as entity ids (`media_player.child`, `media_player.child|volume_level`, or several children joined by `-`); a Jinja2 block there is rejected at startup, or ignored with a warning in the log for an entry imported by an earlier version. `browse_media_entity` is checked more strictly here than upstream, so that the YAML asks for exactly what the UI's entity picker already enforces.
+
 ## Example
 
 The parent media player is a [Music Assistant](https://github.com/music-assistant/hass-music-assistant) media player.  
@@ -218,6 +222,20 @@ Note that `volume_level` is expected in the `0`-`1` range on both sides. If the 
 ## Contributing
 
 Found a bug or have a feature request? Please open an [issue](https://github.com/bastgau/ha-custom-universal-media-player/issues) on GitHub.
+
+### Running the tests
+
+The test suite runs against the real Home Assistant test harness: the core test
+helpers are vendored under `tests/`, from the core version pinned in
+`requirements.txt`.
+
+```bash
+scripts/setup   # installs requirements_test.txt
+scripts/test
+```
+
+See [tests/README.md](tests/README.md) for the layout, how to refresh the
+vendored helpers and what the shared fixtures offer.
 
 ## License
 
