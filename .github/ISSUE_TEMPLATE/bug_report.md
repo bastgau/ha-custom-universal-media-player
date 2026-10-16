@@ -2,10 +2,9 @@
 name: 🐞 Bug report
 description: Report an issue
 about: Use this template for tracking a bug.
-labels: [pending triage]
-title: ''
-labels: ''
-assignees: ''
+title: ""
+labels: ["issue:bug", "issue:triage"]
+assignees: []
 ---
 
 <!--
@@ -16,7 +15,7 @@ Note: The Custom Universal Media Player is not compatible with versions of Home 
 Please specify your Home Assistant version.
 
 **Custom Universal Media Player version:**
-Please specify your Home Assistant version.
+Please specify your integration version.
 
 **Describe the bug**
 A clear and concise description of what the bug is.
