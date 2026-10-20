@@ -1,5 +1,5 @@
 # Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
-_commit: v0.2.0
+_commit: v0.3.0
 _src_path: gh:bastgau/ha-dev-environment
 client_package: ''
 description: A universal media player can combine multiple existing entities in Home
@@ -7,7 +7,6 @@ description: A universal media player can combine multiple existing entities in 
 ha_testing_config: false
 integration_domain: custom_universal_media_player
 integration_name: Custom universal media player
-lenient_tests: false
 prettier_excludes: card
 python_requires: '>=3.14.2,<3.15'
 python_version: '3.14'
