@@ -13,7 +13,7 @@ from .conftest import PLAYER, UNIQUE_ID, SetupPlayer
 
 async def test_setup_entry_adds_the_player(
     hass: HomeAssistant,
-    enable_custom_integrations: None,  # noqa: ARG001
+    enable_custom_integrations: None,
     mock_config_entry: MockConfigEntry,
 ) -> None:
     """The config entry loads and its media player entity shows up."""
@@ -28,7 +28,7 @@ async def test_setup_entry_adds_the_player(
 
 async def test_unload_entry_removes_the_player(
     hass: HomeAssistant,
-    enable_custom_integrations: None,  # noqa: ARG001
+    enable_custom_integrations: None,
     mock_config_entry: MockConfigEntry,
 ) -> None:
     """Unloading the config entry leaves its entity behind as unavailable."""

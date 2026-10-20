@@ -59,8 +59,8 @@ ALL_FEATURES = (
 @pytest.fixture(autouse=True)
 async def _setup_environment(
     hass: HomeAssistant,
-    enable_custom_integrations: None,  # noqa: ARG001
-    media_player_component: None,  # noqa: ARG001
+    enable_custom_integrations: None,
+    media_player_component: None,
 ) -> None:
     """Make the integration loadable and register the media_player actions.
 
