@@ -17,13 +17,12 @@ from custom_components.custom_universal_media_player.const import (
     DOMAIN,
 )
 import pytest
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from homeassistant.components.media_player import DOMAIN as MEDIA_PLAYER_DOMAIN, MediaPlayerEntity
 from homeassistant.const import CONF_NAME, CONF_UNIQUE_ID
 from homeassistant.core import HomeAssistant
 from homeassistant.setup import async_setup_component
-
-from tests.common import MockConfigEntry
 
 if TYPE_CHECKING:
     from homeassistant.helpers.entity_component import EntityComponent

@@ -1,5 +1,7 @@
 """Tests for the custom universal media player setup and teardown."""
 
+from pytest_homeassistant_custom_component.common import MockConfigEntry
+
 from homeassistant.components.media_player import MediaPlayerDeviceClass
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import ATTR_DEVICE_CLASS, CONF_DEVICE_CLASS, STATE_UNAVAILABLE
@@ -7,8 +9,6 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
 from .conftest import PLAYER, UNIQUE_ID, SetupPlayer
-
-from tests.common import MockConfigEntry
 
 
 async def test_setup_entry_adds_the_player(

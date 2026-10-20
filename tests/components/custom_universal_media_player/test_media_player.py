@@ -15,6 +15,7 @@ from custom_components.custom_universal_media_player.const import (
 )
 from custom_components.custom_universal_media_player.media_player import async_setup_platform
 import pytest
+from pytest_homeassistant_custom_component.common import async_mock_service
 
 from homeassistant.components.media_player import (
     ATTR_APP_ID,
@@ -86,8 +87,6 @@ from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
 from .conftest import CHILD_SPEAKER, CHILD_TV, PLAYER, SetupPlayer, get_player, set_child_state
-
-from tests.common import async_mock_service
 
 
 async def test_state_is_off_without_children(
