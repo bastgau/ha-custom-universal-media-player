@@ -1,7 +1,97 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
-set -e
+# Builds the development environment: the uv project environment, the
+# default_config requirements a local `hass` needs, Prettier and a ~/.vimrc.
+# Safe to re-run.
 
-cd "$(dirname "$0")/.."
+# shellcheck source=scripts/_common
+source "$(dirname "$0")/_common"
 
-python3 -m pip install --requirement requirements_test.txt
+echo -e "\n${YELLOW}> Install the project environment (uv sync):${NC}\n"
+
+if ! uv sync; then
+    echo -e "\n${BLUE}[uv]${NC} ${RED}✗ uv failed to sync the project environment.${NC}\n"
+    exit 1
+fi
+
+# The ~45 packages `default_config` needs are not in uv.lock on purpose (see
+# pyproject.toml), so they go in on top of what `uv sync` just installed. That
+# is also why every other script runs with --no-sync: a sync would remove them.
+if ! uv pip install --requirement .devcontainer/requirements-default-config.txt; then
+    echo -e "\n${BLUE}[uv]${NC} ${RED}✗ uv failed to install the default_config requirements.${NC}\n"
+    exit 1
+fi
+
+echo -e "\n${BLUE}[uv]${NC} ${GREEN}✓ Done.${NC}"
+
+echo -e "\n${YELLOW}> Install Prettier (scripts/lint repo):${NC}\n"
+
+# Version pinned to .pre-commit-config.yaml's, so the hook and scripts/lint
+# cannot format the same file differently.
+#
+# Installed globally rather than left to npx: scripts/lint falls back to
+# `npx --yes`, which re-resolves the package on every run. Having the binary
+# on PATH makes the `repo` scope start instantly.
+#
+# prettier-plugin-sort-json is deliberately NOT installed, even though
+# .pre-commit-config.yaml lists it: nothing passes --plugin and the repo has
+# no .prettierrc, so the hook never loads it either. Installing it here would
+# suggest otherwise - and enabling it would sort strings.json's keys
+# alphabetically, breaking the block order Home Assistant expects.
+PRETTIER_VERSION="3.6.2"
+
+if ! command -v npm > /dev/null 2>&1; then
+    echo -e "npm not found. Skipping - scripts/lint falls back to npx, and the pre-commit hook is unaffected."
+    echo -e "\n${BLUE}[prettier]${NC} ${YELLOW}- Skipped.${NC}"
+elif [ "$(prettier --version 2> /dev/null)" = "$PRETTIER_VERSION" ]; then
+    echo -e "Prettier ${PRETTIER_VERSION} already installed. Skipping."
+    echo -e "\n${BLUE}[prettier]${NC} ${GREEN}✓ Done.${NC}"
+else
+    npm install --global --no-fund --no-audit "prettier@${PRETTIER_VERSION}"
+
+    if [ $? -ne 0 ]; then
+        echo -e "\n${BLUE}[prettier]${NC} ${RED}✗ npm failed to install Prettier.${NC}\n"
+        exit 1
+    fi
+
+    echo -e "\n${BLUE}[prettier]${NC} ${GREEN}✓ Done.${NC}"
+fi
+
+
+echo -e "\n${YELLOW}> Configure environment for using VIM:${NC}\n"
+
+# Create .vimrc with Python-friendly config if it doesn't exist
+
+VIMRC="$HOME/.vimrc"
+
+if [ -f "$VIMRC" ]; then
+    echo -e "File .vimrc already exists. Skipping."
+else
+    echo -e "Creating the file .vimrc"
+    cat > "$VIMRC" << 'EOF'
+filetype on          " Enable file type detection
+syntax on            " Enable syntax highlighting
+set background=dark  " Adapt colors for dark background (ideal in PuTTY)
+set linebreak        " Wrap lines at word boundaries instead of characters (requires Wrap lines, enabled by default)
+set visualbell       " Use visual bell instead of audible beep
+set showmatch        " Highlight searched words in text
+set hlsearch         " Highlight all search results
+set autoindent       " Auto-indent new lines
+set expandtab        " Replace tabs with spaces
+set shiftwidth=4     " (auto) Indentation of 4 spaces
+set smartindent      " Enable smart-indent (improves auto-indentation, especially when pasting already indented text)
+set smarttab         " Enable smart-tabs (improves auto-indentation, manages spaces at the beginning of lines)
+set softtabstop=4    " Tab = 4 spaces
+set mouse-=a
+set backspace=indent,eol,start
+EOF
+
+    if [ $? -eq 0 ]; then
+        echo -e "File .vimrc created successfully."
+    else
+        echo -e "\n${BLUE}[vimrc]${NC} ${RED}✗ Failed to create the file .vimrc.${NC}\n"
+        exit 1
+    fi
+fi
+
+echo -e "\n${BLUE}[vimrc]${NC} ${GREEN}✓ Done.${NC}"

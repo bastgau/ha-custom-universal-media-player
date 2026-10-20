@@ -1,7 +1,5 @@
 {
   "permissions": {
-    "allow": [
-      "Bash(python3 scripts/check_config_flow)"
-    ]
+    "allow": ["Bash(python3 scripts/check_config_flow)"]
   }
 }
