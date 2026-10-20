@@ -78,7 +78,7 @@ def mock_config_entry() -> MockConfigEntry:
 @pytest.fixture
 async def setup_player(
     hass: HomeAssistant,
-    enable_custom_integrations: None,  # noqa: ARG001
+    enable_custom_integrations: None,
 ) -> SetupPlayer:
     """Return a helper setting up a player from partial config entry data.
 
