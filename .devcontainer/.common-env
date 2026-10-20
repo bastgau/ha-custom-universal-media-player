@@ -2,5 +2,4 @@ INTEGRATION_DOMAIN=custom_universal_media_player
 INTEGRATION_NAME=Custom universal media player
 CLIENT_PACKAGE=
 CLIENT_TESTS_PATH=
-PRETTIER_EXCLUDES=card
 PYTHON_VERSION=3.14
