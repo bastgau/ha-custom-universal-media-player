@@ -12,7 +12,7 @@
 </p>
 
 > [!IMPORTANT]
-> Starting from this version, this integration requires **Home Assistant 2026.7.0 or newer**. If you are running an older version of Home Assistant, please stay on a previous release of this integration.
+> Starting from this version, this integration requires **Home Assistant 2026.10.0 or newer**. If you are running an older version of Home Assistant, please stay on a previous release of this integration.
 
 Original component : [Universal media player](https://www.home-assistant.io/integrations/universal/)
 
