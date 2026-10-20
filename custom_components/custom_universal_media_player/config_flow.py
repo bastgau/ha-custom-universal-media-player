@@ -7,7 +7,7 @@ import json
 import logging
 from typing import TYPE_CHECKING, Any
 
-import voluptuous as vol
+import probatio
 import yaml
 
 from homeassistant.components.media_player import (
@@ -387,12 +387,12 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
 
             return await self.async_step_device_class()
 
-        schema = vol.Schema(
+        schema = probatio.Schema(
             {
-                vol.Required(CONF_CHILDREN, default=[]): EntitySelector(
+                probatio.Required(CONF_CHILDREN, default=[]): EntitySelector(
                     EntitySelectorConfig(domain=MEDIA_PLAYER_DOMAIN, multiple=True, reorder=True),
                 ),
-                vol.Required(CONF_NAME): TextSelector(),
+                probatio.Required(CONF_NAME): TextSelector(),
             },
         )
 
@@ -416,9 +416,9 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         suggested = self._suggest_device_class()
         current = self._data.get(CONF_DEVICE_CLASS) or CONF_DEVICE_CLASS_NONE
 
-        schema = vol.Schema(
+        schema = probatio.Schema(
             {
-                vol.Optional(CONF_DEVICE_CLASS, default=current): SelectSelector(
+                probatio.Optional(CONF_DEVICE_CLASS, default=current): SelectSelector(
                     SelectSelectorConfig(
                         options=list(DEVICE_CLASS_OPTIONS),
                         translation_key="device_class",
@@ -603,9 +603,9 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
             self._data[CONF_CHILDREN] = user_input[CONF_CHILDREN]
             return await self.async_step_config_device_class()
 
-        schema = vol.Schema(
+        schema = probatio.Schema(
             {
-                vol.Required(CONF_CHILDREN, default=self._data.get(CONF_CHILDREN, [])): EntitySelector(
+                probatio.Required(CONF_CHILDREN, default=self._data.get(CONF_CHILDREN, [])): EntitySelector(
                     EntitySelectorConfig(domain=MEDIA_PLAYER_DOMAIN, multiple=True, reorder=True),
                 ),
             },
@@ -652,16 +652,16 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
                 self._data[CONF_STATE_TEMPLATE] = state_template
                 return await self.async_step_config_menu()
 
-        schema = vol.Schema(
+        schema = probatio.Schema(
             {
-                vol.Optional(CONF_BROWSE_MEDIA_ENTITY): EntitySelector(
+                probatio.Optional(CONF_BROWSE_MEDIA_ENTITY): EntitySelector(
                     EntitySelectorConfig(
                         domain=MEDIA_PLAYER_DOMAIN,
                         filter=[{"supported_features": ["media_player.MediaPlayerEntityFeature.BROWSE_MEDIA"]}],
                     ),
                 ),
-                vol.Optional(CONF_ACTIVE_CHILD_TEMPLATE): TemplateSelector(),
-                vol.Optional(CONF_STATE_TEMPLATE): TemplateSelector(),
+                probatio.Optional(CONF_ACTIVE_CHILD_TEMPLATE): TemplateSelector(),
+                probatio.Optional(CONF_STATE_TEMPLATE): TemplateSelector(),
             },
         )
         suggested_values = (
@@ -873,7 +873,7 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         self,
         user_input: dict[str, Any] | None = None,
         incomplete_keys: set[str] | None = None,
-    ) -> tuple[vol.Schema, dict[str, Any]]:
+    ) -> tuple[probatio.Schema, dict[str, Any]]:
         """Build the entity/action picker schema, grouped by category.
 
         Each category is a collapsible section (collapsed by default), and
@@ -896,7 +896,7 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
                 was filled in on the last submission.
 
         Returns:
-            A tuple of the voluptuous schema for the actions form, and the
+            A tuple of the probatio schema for the actions form, and the
             suggested values to overlay on it (keyed by section name).
 
         """
@@ -951,21 +951,21 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
                 if suggested_action:
                     action_options.add(suggested_action)
 
-                category_schema[vol.Optional(entity_field)] = EntitySelector(entity_selector_config)
-                category_schema[vol.Optional(_action_field(key))] = SelectSelector(
+                category_schema[probatio.Optional(entity_field)] = EntitySelector(entity_selector_config)
+                category_schema[probatio.Optional(_action_field(key))] = SelectSelector(
                     SelectSelectorConfig(options=sorted(action_options), mode=SelectSelectorMode.DROPDOWN),
                 )
 
             if category_schema:
                 section_name = _category_section(category)
-                schema_dict[vol.Optional(section_name)] = section(
-                    vol.Schema(category_schema),
+                schema_dict[probatio.Optional(section_name)] = section(
+                    probatio.Schema(category_schema),
                     SectionConfig({"collapsed": True}),
                 )
                 if category_suggested:
                     suggested_values[section_name] = category_suggested
 
-        return vol.Schema(schema_dict), suggested_values
+        return probatio.Schema(schema_dict), suggested_values
 
     async def async_step_config_commands_custom(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Handle the YAML review step, the source of truth for commands.
@@ -995,7 +995,7 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
             else:
                 try:
                     validated = CMD_SCHEMA(parsed)
-                except vol.Invalid:
+                except probatio.Invalid:
                     errors["base"] = "invalid_action"
                 else:
                     unknown_keys = self._find_unknown_command_keys(validated)
@@ -1094,7 +1094,7 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
 
         return unknown
 
-    def _commands_review_schema(self, user_input: dict[str, Any] | None = None) -> tuple[vol.Schema, str]:
+    def _commands_review_schema(self, user_input: dict[str, Any] | None = None) -> tuple[probatio.Schema, str]:
         """Build the review step schema, a single YAML textarea for all commands.
 
         The field has no schema default: it's pre-filled via a suggested_value
@@ -1107,7 +1107,7 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
                 instead of reverting to the previously saved commands.
 
         Returns:
-            A tuple of the voluptuous schema for the review form, and the
+            A tuple of the probatio schema for the review form, and the
             suggested value to overlay on it.
 
         """
@@ -1117,7 +1117,7 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
             existing_commands: dict[str, Any] = self._data.get(CONF_COMMANDS, {})
             preview_yaml = _to_yaml(existing_commands)
 
-        schema = vol.Schema({vol.Optional(CONF_COMMANDS): TextSelector(TextSelectorConfig(multiline=True))})
+        schema = probatio.Schema({probatio.Optional(CONF_COMMANDS): TextSelector(TextSelectorConfig(multiline=True))})
         return schema, preview_yaml
 
     async def async_step_config_attributes_custom(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
@@ -1140,7 +1140,7 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
             if raw:
                 try:
                     parsed_attrs = ATTRS_SCHEMA(yaml.safe_load(raw))
-                except (yaml.YAMLError, vol.Invalid):
+                except (yaml.YAMLError, probatio.Invalid):
                     errors["base"] = "invalid_yaml"
                 else:
                     unknown_entities = self._find_unknown_attribute_entities(parsed_attrs)
@@ -1174,7 +1174,7 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
 
         description_placeholders = {"problems": _format_problems(problems)}
 
-        schema = vol.Schema({vol.Optional(CONF_ATTRS): TextSelector(TextSelectorConfig(multiline=True))})
+        schema = probatio.Schema({probatio.Optional(CONF_ATTRS): TextSelector(TextSelectorConfig(multiline=True))})
 
         return self.async_show_form(
             step_id="config_attributes_custom",

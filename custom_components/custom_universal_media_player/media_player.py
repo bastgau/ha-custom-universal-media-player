@@ -7,7 +7,7 @@ import logging
 from typing import TYPE_CHECKING, Any, override
 from urllib.parse import urlparse
 
-import voluptuous as vol
+import probatio
 
 from homeassistant.components.media_player import (
     DEVICE_CLASSES_SCHEMA,
@@ -167,17 +167,17 @@ CMD_SCHEMA: Any = cv.schema_with_slug_keys(cv.SERVICE_SCHEMA)  # pyright: ignore
 
 PLATFORM_SCHEMA = MEDIA_PLAYER_PLATFORM_SCHEMA.extend(  # pyright: ignore[reportUnknownMemberType]
     {
-        vol.Required(CONF_NAME): cv.string,
-        vol.Optional(CONF_CHILDREN, default=[]): cv.entity_ids,  # pyright: ignore[reportUnknownMemberType]
-        vol.Optional(CONF_COMMANDS, default={}): CMD_SCHEMA,
-        vol.Optional(CONF_ATTRS, default={}): vol.Or(cv.ensure_list(ATTRS_SCHEMA), ATTRS_SCHEMA),
-        vol.Optional(CONF_BROWSE_MEDIA_ENTITY): cv.entity_id,
-        vol.Optional(CONF_UNIQUE_ID): cv.string,
-        vol.Optional(CONF_DEVICE_CLASS): DEVICE_CLASSES_SCHEMA,
-        vol.Optional(CONF_ACTIVE_CHILD_TEMPLATE): cv.template,
-        vol.Optional(CONF_STATE_TEMPLATE): cv.template,
+        probatio.Required(CONF_NAME): cv.string,
+        probatio.Optional(CONF_CHILDREN, default=[]): cv.entity_ids,  # pyright: ignore[reportUnknownMemberType]
+        probatio.Optional(CONF_COMMANDS, default={}): CMD_SCHEMA,
+        probatio.Optional(CONF_ATTRS, default={}): probatio.Or(cv.ensure_list(ATTRS_SCHEMA), ATTRS_SCHEMA),
+        probatio.Optional(CONF_BROWSE_MEDIA_ENTITY): cv.entity_id,
+        probatio.Optional(CONF_UNIQUE_ID): cv.string,
+        probatio.Optional(CONF_DEVICE_CLASS): DEVICE_CLASSES_SCHEMA,
+        probatio.Optional(CONF_ACTIVE_CHILD_TEMPLATE): cv.template,
+        probatio.Optional(CONF_STATE_TEMPLATE): cv.template,
     },
-    extra=vol.REMOVE_EXTRA,
+    extra=probatio.REMOVE_EXTRA,
 )
 
 
