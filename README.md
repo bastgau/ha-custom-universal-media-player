@@ -222,17 +222,16 @@ Found a bug or have a feature request? Please open an [issue](https://github.com
 
 ### Running the tests
 
-The test suite runs against the real Home Assistant test harness: the core test
-helpers are vendored under `tests/`, from the core version pinned in
-`requirements.txt`.
+The test suite runs on `pytest-homeassistant-custom-component`, pinned in
+`pyproject.toml` together with the Home Assistant version it is built for.
 
 ```bash
-scripts/setup   # installs requirements_test.txt
+scripts/setup   # installs the project environment with uv
 scripts/test
 ```
 
-See [tests/README.md](tests/README.md) for the layout, how to refresh the
-vendored helpers and what the shared fixtures offer.
+`scripts/lint` runs the same checks as the CI. See
+[scripts/README.md](scripts/README.md) for every script.
 
 ## License
 

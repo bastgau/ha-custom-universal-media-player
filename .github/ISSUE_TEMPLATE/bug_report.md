@@ -8,7 +8,7 @@ assignees: []
 ---
 
 <!--
-Note: The Custom Universal Media Player is not compatible with versions of Home Assistant prior to 2025.03.
+Note: The Custom Universal Media Player is not compatible with versions of Home Assistant prior to 2026.10.
 -->
 
 **Home Assistant version:**
