@@ -2,7 +2,6 @@
 
 # These tests exercise the private helpers of the config flow module directly.
 # pylint: disable=protected-access
-# pyright: reportPrivateUsage=false, reportOptionalMemberAccess=false, reportOptionalSubscript=false
 
 from typing import Any, cast
 
@@ -758,7 +757,7 @@ def test_field_name_helpers() -> None:
 
 @pytest.mark.parametrize(
     ("value", "expected"),
-    [  # pyright: ignore[reportUnknownArgumentType]
+    [
         (CHILD_TV, ([CHILD_TV], None)),
         (f"{CHILD_TV}|volume_level", ([CHILD_TV], "volume_level")),
         (f" {CHILD_TV} - {CHILD_SPEAKER} | volume_level ", ([CHILD_TV, CHILD_SPEAKER], "volume_level")),
