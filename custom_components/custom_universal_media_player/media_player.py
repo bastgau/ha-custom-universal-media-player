@@ -220,9 +220,6 @@ async def async_setup_platform(
         async_add_entities (AddEntitiesCallback): Unused; entities are added via async_setup_entry.
         discovery_info (DiscoveryInfoType | None): Optional discovery information.
 
-    Returns:
-        None
-
     """
     hass.async_create_task(
         hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_IMPORT}, data=config),
@@ -240,9 +237,6 @@ async def async_setup_entry(
         hass (HomeAssistant): The Home Assistant instance.
         entry (ConfigEntry): The config entry to set up.
         async_add_entities (AddConfigEntryEntitiesCallback): Callback to register new entities.
-
-    Returns:
-        None
 
     """
     config: dict[str, Any] = dict(entry.data)
@@ -332,12 +326,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
 
     @override
     async def async_added_to_hass(self) -> None:
-        """Subscribe to children and template state changes.
-
-        Returns:
-            None
-
-        """
+        """Subscribe to children and template state changes."""
 
         @callback
         def _async_on_dependency_update(
@@ -499,9 +488,6 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
             service_name (str): The name of the media player service to call.
             service_data (dict[str, Any] | None): Optional dictionary of service call parameters.
             allow_override (bool): Whether to check for a command override before falling back to the active child.
-
-        Returns:
-            None
 
         """
         if service_data is None:
@@ -1019,22 +1005,12 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
 
     @override
     async def async_turn_on(self) -> None:
-        """Turn the media player on.
-
-        Returns:
-            None
-
-        """
+        """Turn the media player on."""
         await self._async_call_service(SERVICE_TURN_ON, allow_override=True)
 
     @override
     async def async_turn_off(self) -> None:
-        """Turn the media player off.
-
-        Returns:
-            None
-
-        """
+        """Turn the media player off."""
         await self._async_call_service(SERVICE_TURN_OFF, allow_override=True)
 
     @override
@@ -1043,9 +1019,6 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
 
         Args:
             mute (bool): True to mute, False to unmute.
-
-        Returns:
-            None
 
         """
         data = {ATTR_MEDIA_VOLUME_MUTED: mute}
@@ -1058,61 +1031,33 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         Args:
             volume (float): The desired volume level as a float between 0 and 1.
 
-        Returns:
-            None
-
         """
         data = {ATTR_MEDIA_VOLUME_LEVEL: volume}
         await self._async_call_service(SERVICE_VOLUME_SET, data, allow_override=True)
 
     @override
     async def async_media_play(self) -> None:
-        """Send play command.
-
-        Returns:
-            None
-
-        """
+        """Send play command."""
         await self._async_call_service(SERVICE_MEDIA_PLAY, allow_override=True)
 
     @override
     async def async_media_pause(self) -> None:
-        """Send pause command.
-
-        Returns:
-            None
-
-        """
+        """Send pause command."""
         await self._async_call_service(SERVICE_MEDIA_PAUSE, allow_override=True)
 
     @override
     async def async_media_stop(self) -> None:
-        """Send stop command.
-
-        Returns:
-            None
-
-        """
+        """Send stop command."""
         await self._async_call_service(SERVICE_MEDIA_STOP, allow_override=True)
 
     @override
     async def async_media_previous_track(self) -> None:
-        """Send previous track command.
-
-        Returns:
-            None
-
-        """
+        """Send previous track command."""
         await self._async_call_service(SERVICE_MEDIA_PREVIOUS_TRACK, allow_override=True)
 
     @override
     async def async_media_next_track(self) -> None:
-        """Send next track command.
-
-        Returns:
-            None
-
-        """
+        """Send next track command."""
         await self._async_call_service(SERVICE_MEDIA_NEXT_TRACK, allow_override=True)
 
     @override
@@ -1121,9 +1066,6 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
 
         Args:
             position (float): The target position in seconds to seek to.
-
-        Returns:
-            None
 
         """
         data = {ATTR_MEDIA_SEEK_POSITION: position}
@@ -1138,41 +1080,23 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
             media_id (str): The ID or URL of the media to play.
             **kwargs (Any): Additional optional parameters passed to the service.
 
-        Returns:
-            None
-
         """
         data = {ATTR_MEDIA_CONTENT_TYPE: media_type, ATTR_MEDIA_CONTENT_ID: media_id}
         await self._async_call_service(SERVICE_PLAY_MEDIA, data, allow_override=True)
 
     @override
     async def async_volume_up(self) -> None:
-        """Turn volume up for media player.
-
-        Returns:
-            None
-
-        """
+        """Turn volume up for media player."""
         await self._async_call_service(SERVICE_VOLUME_UP, allow_override=True)
 
     @override
     async def async_volume_down(self) -> None:
-        """Turn volume down for media player.
-
-        Returns:
-            None
-
-        """
+        """Turn volume down for media player."""
         await self._async_call_service(SERVICE_VOLUME_DOWN, allow_override=True)
 
     @override
     async def async_media_play_pause(self) -> None:
-        """Play or pause the media player.
-
-        Returns:
-            None
-
-        """
+        """Play or pause the media player."""
         await self._async_call_service(SERVICE_MEDIA_PLAY_PAUSE, allow_override=True)
 
     @override
@@ -1181,9 +1105,6 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
 
         Args:
             sound_mode (str): The sound mode to select.
-
-        Returns:
-            None
 
         """
         data = {ATTR_SOUND_MODE: sound_mode}
@@ -1196,21 +1117,13 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         Args:
             source (str): The input source to select.
 
-        Returns:
-            None
-
         """
         data = {ATTR_INPUT_SOURCE: source}
         await self._async_call_service(SERVICE_SELECT_SOURCE, data, allow_override=True)
 
     @override
     async def async_clear_playlist(self) -> None:
-        """Clear player playlist.
-
-        Returns:
-            None
-
-        """
+        """Clear player playlist."""
         await self._async_call_service(SERVICE_CLEAR_PLAYLIST, allow_override=True)
 
     @override
@@ -1225,9 +1138,6 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
 
         Args:
             group_members (list[str]): The entity IDs of the players to join.
-
-        Returns:
-            None
 
         """
         resolved_members = [self._resolve_real_entity_id(entity_id) for entity_id in group_members]
@@ -1283,12 +1193,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
 
     @override
     async def async_unjoin_player(self) -> None:
-        """Remove the active child from its current group.
-
-        Returns:
-            None
-
-        """
+        """Remove the active child from its current group."""
         await self._async_call_service(SERVICE_UNJOIN, allow_override=True)
 
     @override
@@ -1297,9 +1202,6 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
 
         Args:
             shuffle (bool): True to enable shuffle, False to disable.
-
-        Returns:
-            None
 
         """
         data = {ATTR_MEDIA_SHUFFLE: shuffle}
@@ -1312,21 +1214,13 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         Args:
             repeat (RepeatMode): The repeat mode to set.
 
-        Returns:
-            None
-
         """
         data = {ATTR_MEDIA_REPEAT: repeat}
         await self._async_call_service(SERVICE_REPEAT_SET, data, allow_override=True)
 
     @override
     async def async_toggle(self) -> None:
-        """Toggle the power on the media player.
-
-        Returns:
-            None
-
-        """
+        """Toggle the power on the media player."""
         if SERVICE_TOGGLE in self._cmds:
             await self._async_call_service(SERVICE_TOGGLE, allow_override=True)
         else:
@@ -1372,9 +1266,6 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         used directly. Otherwise, iterates over configured children and picks the
         one with the most active state according to STATES_ORDER_LOOKUP.
 
-        Returns:
-            None
-
         """
         if self._active_child_template_result:
             self._child_state = self.hass.states.get(self._active_child_template_result)
@@ -1391,10 +1282,5 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
                     self._child_state = child_state
 
     async def async_update(self) -> None:
-        """Manual update from API.
-
-        Returns:
-            None
-
-        """
+        """Manual update from API."""
         self._async_update()
