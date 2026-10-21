@@ -5,14 +5,13 @@ from __future__ import annotations
 from collections import Counter
 import json
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import probatio
 import yaml
 
 from homeassistant.components.media_player import (
     DOMAIN as MEDIA_PLAYER_DOMAIN,  # pyright: ignore[reportPrivateImportUsage]
-    MediaPlayerDeviceClass,
 )
 from homeassistant.components.media_player.const import (
     SERVICE_CLEAR_PLAYLIST,
@@ -21,6 +20,7 @@ from homeassistant.components.media_player.const import (
     SERVICE_SELECT_SOUND_MODE,
     SERVICE_SELECT_SOURCE,
     SERVICE_UNJOIN,
+    MediaPlayerDeviceClass,
     MediaPlayerEntityFeature,
 )
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
@@ -52,13 +52,13 @@ from homeassistant.exceptions import TemplateError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.issue_registry import IssueSeverity, async_create_issue
 from homeassistant.helpers.selector import (
-    EntitySelector,
+    EntitySelector,  # pyright: ignore[reportUnknownVariableType]
     EntitySelectorConfig,
-    SelectSelector,
+    SelectSelector,  # pyright: ignore[reportUnknownVariableType]
     SelectSelectorConfig,
     SelectSelectorMode,
-    TemplateSelector,
-    TextSelector,
+    TemplateSelector,  # pyright: ignore[reportUnknownVariableType]
+    TextSelector,  # pyright: ignore[reportUnknownVariableType]
     TextSelectorConfig,
 )
 from homeassistant.helpers.template import Template
@@ -150,12 +150,11 @@ def _entity_field(key: str, *, error: bool = False) -> str:
     """Build the schema field name for a command's target entity.
 
     Args:
-        key: The command key (e.g. "turn_on").
-        error: Whether to use the field name whose label carries a warning
-            marker, shown when the command is incomplete.
+        key (str): The command key (e.g. "turn_on").
+        error (bool): Whether to use the field name whose label carries a warning marker, shown when the command is incomplete.
 
     Returns:
-        The corresponding form field name.
+        str: The corresponding form field name.
 
     """
     return f"{key}__entity_error" if error else f"{key}__entity"
@@ -165,10 +164,10 @@ def _action_field(key: str) -> str:
     """Build the schema field name for a command's action.
 
     Args:
-        key: The command key (e.g. "turn_on").
+        key (str): The command key (e.g. "turn_on").
 
     Returns:
-        The corresponding form field name.
+        str: The corresponding form field name.
 
     """
     return f"{key}__action"
@@ -178,10 +177,10 @@ def _category_section(category: str) -> str:
     """Build the section name for a command category.
 
     Args:
-        category: The category name (e.g. "power").
+        category (str): The category name (e.g. "power").
 
     Returns:
-        The corresponding form section name.
+        str: The corresponding form section name.
 
     """
     return f"category_{category}"
@@ -194,6 +193,7 @@ class _BlockStringDumper(yaml.SafeDumper):
     double-quoted scalar, with escaped newlines and line continuations. A
     templated command survives the round-trip that way, but comes back
     unreadable - and these screens exist to be edited by hand.
+
     """
 
 
@@ -201,14 +201,14 @@ def _represent_str(dumper: yaml.SafeDumper, data: str) -> yaml.ScalarNode:
     """Represent a string, using a block scalar when it spans several lines.
 
     Args:
-        dumper: The dumper doing the serialization.
-        data: The string to represent.
+        dumper (yaml.SafeDumper): The dumper doing the serialization.
+        data (str): The string to represent.
 
     Returns:
-        The scalar node for that string.
+        yaml.ScalarNode: The scalar node for that string.
 
     """
-    return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|" if "\n" in data else None)
+    return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|" if "\n" in data else None)  # pyright: ignore[reportUnknownMemberType]
 
 
 _BlockStringDumper.add_representer(str, _represent_str)
@@ -221,10 +221,10 @@ def _to_yaml(value: dict[str, Any]) -> str:
     OrderedDict, a tuple) so the dump stays free of Python-specific tags.
 
     Args:
-        value: The mapping to serialize.
+        value (dict[str, Any]): The mapping to serialize.
 
     Returns:
-        The YAML text, or an empty string when there is nothing to show.
+        str: The YAML text, or an empty string when there is nothing to show.
 
     """
     if not value:
@@ -243,15 +243,15 @@ def _static_target(command: dict[str, Any]) -> dict[str, Any]:
     dict and string operations these checks rely on.
 
     Args:
-        command: The command dict (action/target/data).
+        command (dict[str, Any]): The command dict (action/target/data).
 
     Returns:
-        The target mapping, or an empty one when the target is templated or
+        dict[str, Any]: The target mapping, or an empty one when the target is templated or
         absent.
 
     """
     target = command.get("target")
-    return target if isinstance(target, dict) else {}
+    return cast("dict[str, Any]", target) if isinstance(target, dict) else {}
 
 
 def _extract_entity_id(command: dict[str, Any]) -> str | None:
@@ -261,17 +261,18 @@ def _extract_entity_id(command: dict[str, Any]) -> str | None:
     counts as "no static entity_id" rather than as one.
 
     Args:
-        command: The command dict (action/target/data).
+        command (dict[str, Any]): The command dict (action/target/data).
 
     Returns:
-        The single target entity_id, or None if there is none, more than one,
+        str | None: The single target entity_id, or None if there is none, more than one,
         or it is templated.
 
     """
-    entity_id = _static_target(command).get("entity_id")
+    entity_id: Any = _static_target(command).get("entity_id")
 
     if isinstance(entity_id, list):
-        entity_id = entity_id[0] if len(entity_id) == 1 else None
+        members = cast("list[Any]", entity_id)
+        entity_id = members[0] if len(members) == 1 else None
 
     return entity_id if isinstance(entity_id, str) and entity_id else None
 
@@ -280,10 +281,10 @@ def _format_problems(problems: list[str]) -> str:
     """Format a list of validation problems as a bullet list for a step description.
 
     Args:
-        problems: The problem descriptions to list, if any.
+        problems (list[str]): The problem descriptions to list, if any.
 
     Returns:
-        A markdown bullet list prefixed with a blank line, ready to be
+        str: A markdown bullet list prefixed with a blank line, ready to be
         appended after a step's base description text, or an empty string
         if there are no problems.
 
@@ -305,20 +306,20 @@ def _detemplatize(value: Any) -> Any:
     again when they are called.
 
     Args:
-        value: A validated command, or any part of one.
+        value (Any): A validated command, or any part of one.
 
     Returns:
-        The same structure with every Template replaced by its source string.
+        Any: The same structure with every Template replaced by its source string.
 
     """
     if isinstance(value, Template):
         return value.template
 
     if isinstance(value, dict):
-        return {key: _detemplatize(item) for key, item in value.items()}
+        return {key: _detemplatize(item) for key, item in cast("dict[str, Any]", value).items()}
 
     if isinstance(value, list):
-        return [_detemplatize(item) for item in value]
+        return [_detemplatize(item) for item in cast("list[Any]", value)]
 
     return value
 
@@ -327,10 +328,10 @@ def _is_simple_command(command: dict[str, Any] | None) -> bool:
     """Check whether a command reduces to a plain entity + action pick.
 
     Args:
-        command: The command dict (action/target/data), or None.
+        command (dict[str, Any] | None): The command dict (action/target/data), or None.
 
     Returns:
-        True if the command only has an action and a single target entity_id,
+        bool: True if the command only has an action and a single target entity_id,
         with no extra data.
 
     """
@@ -352,7 +353,14 @@ def _is_simple_command(command: dict[str, Any] | None) -> bool:
 
 
 class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for the custom universal media player."""
+    """Handle a config flow for the custom universal media player.
+
+    Attributes:
+        _data (dict[str, Any]): The configuration collected by the flow steps.
+        _title (str): The title of the config entry being created or edited.
+        _reconfigure_entry (ConfigEntry | None): The config entry being reconfigured, or None when adding a new one.
+
+    """
 
     VERSION = 1
     MINOR_VERSION = 2
@@ -367,10 +375,10 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         """Handle the first step: name and children selection.
 
         Args:
-            user_input: The submitted form data, or None on first display.
+            user_input (dict[str, Any] | None): The submitted form data, or None on first display.
 
         Returns:
-            The next step's flow result.
+            ConfigFlowResult: The next step's flow result.
 
         """
         errors: dict[str, str] = {}
@@ -402,10 +410,10 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         """Handle the device class confirmation step.
 
         Args:
-            user_input: The submitted form data, or None on first display.
+            user_input (dict[str, Any] | None): The submitted form data, or None on first display.
 
         Returns:
-            The next step's flow result.
+            ConfigFlowResult: The next step's flow result.
 
         """
         if user_input is not None:
@@ -438,7 +446,7 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         """Suggest a device class based on the selected children's current state.
 
         Returns:
-            The most common device class among the children, or the "none"
+            str: The most common device class among the children, or the "none"
             sentinel if none is found.
 
         """
@@ -458,10 +466,10 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         """Offer to configure commands via pickers, raw YAML, or skip to attributes.
 
         Args:
-            _user_input: Unused; menu selection is handled via dedicated steps.
+            _user_input (dict[str, Any] | None): Unused; menu selection is handled via dedicated steps.
 
         Returns:
-            A menu flow result with "guided", "custom" and "attributes" options.
+            ConfigFlowResult: A menu flow result with "guided", "custom" and "attributes" options.
 
         """
         guided_label = "Configure commands - Guided"
@@ -485,10 +493,10 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         """Show the device class step, reachable from the config menu.
 
         Args:
-            _user_input: Unused.
+            _user_input (dict[str, Any] | None): Unused.
 
         Returns:
-            The device class step's flow result.
+            ConfigFlowResult: The device class step's flow result.
 
         """
         return await self.async_step_device_class()
@@ -497,7 +505,7 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         """Check whether any current command is not a plain entity+action pick.
 
         Returns:
-            True if at least one command would be lost by the guided picker.
+            bool: True if at least one command would be lost by the guided picker.
 
         """
         existing_commands: dict[str, Any] = self._data.get(CONF_COMMANDS, {})
@@ -512,10 +520,10 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         custom commands would be lost, asks for confirmation first.
 
         Args:
-            _user_input: Unused.
+            _user_input (dict[str, Any] | None): Unused.
 
         Returns:
-            A warning screen, the confirmation menu, or the entity/action
+            ConfigFlowResult: A warning screen, the confirmation menu, or the entity/action
             picker step's flow result.
 
         """
@@ -531,7 +539,7 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         """Compute the union of supported_features across the selected children.
 
         Returns:
-            The bitwise OR of all children's supported_features, 0 if none
+            MediaPlayerEntityFeature: The bitwise OR of all children's supported_features, 0 if none
             are currently available.
 
         """
@@ -548,7 +556,7 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         """Check whether any selected child supports at least one known command.
 
         Returns:
-            True if at least one child's supported_features overlaps with
+            bool: True if at least one child's supported_features overlaps with
             at least one of the known commands' required feature.
 
         """
@@ -563,10 +571,10 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         """Warn that guided configuration requires at least one capable child.
 
         Args:
-            _user_input: Unused; menu selection is handled via dedicated steps.
+            _user_input (dict[str, Any] | None): Unused; menu selection is handled via dedicated steps.
 
         Returns:
-            A menu flow result with "edit children" and "back" options.
+            ConfigFlowResult: A menu flow result with "edit children" and "back" options.
 
         """
         return self.async_show_menu(
@@ -581,10 +589,10 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         """Show the children step, reachable from the config menu.
 
         Args:
-            _user_input: Unused.
+            _user_input (dict[str, Any] | None): Unused.
 
         Returns:
-            The children step's flow result.
+            ConfigFlowResult: The children step's flow result.
 
         """
         return await self.async_step_children()
@@ -593,10 +601,10 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         """Edit the selected children.
 
         Args:
-            user_input: The submitted form data, or None on first display.
+            user_input (dict[str, Any] | None): The submitted form data, or None on first display.
 
         Returns:
-            The device class step's flow result.
+            ConfigFlowResult: The device class step's flow result.
 
         """
         if user_input is not None:
@@ -617,10 +625,10 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         """Show the advanced settings step, reachable from the config menu.
 
         Args:
-            _user_input: Unused.
+            _user_input (dict[str, Any] | None): Unused.
 
         Returns:
-            The advanced settings step's flow result.
+            ConfigFlowResult: The advanced settings step's flow result.
 
         """
         return await self.async_step_advanced()
@@ -629,10 +637,10 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         """Edit advanced settings.
 
         Args:
-            user_input: The submitted form data, or None on first display.
+            user_input (dict[str, Any] | None): The submitted form data, or None on first display.
 
         Returns:
-            The config menu's flow result.
+            ConfigFlowResult: The config menu's flow result.
 
         """
         errors: dict[str, str] = {}
@@ -694,10 +702,10 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         so (`states('media_player.x')`) always renders to a string.
 
         Args:
-            raw_template: The template source to render and check.
+            raw_template (str): The template source to render and check.
 
         Returns:
-            True if the template renders to a string, False if it fails to
+            bool: True if the template renders to a string, False if it fails to
             render or renders to a non-string value.
 
         """
@@ -720,10 +728,10 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         as "{{ is_state(...) }}", a number) is still rejected.
 
         Args:
-            raw_template: The template source to render and check.
+            raw_template (str): The template source to render and check.
 
         Returns:
-            True if the template renders to None, to an empty string, or to
+            bool: True if the template renders to None, to an empty string, or to
             the entity_id of an existing media_player entity, False otherwise
             (including if the template fails to render).
 
@@ -749,10 +757,10 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         """Warn that guided configuration may lose custom command rules.
 
         Args:
-            _user_input: Unused; menu selection is handled via dedicated steps.
+            _user_input (dict[str, Any] | None): Unused; menu selection is handled via dedicated steps.
 
         Returns:
-            A menu flow result with "continue" and "back" options.
+            ConfigFlowResult: A menu flow result with "continue" and "back" options.
 
         """
         return self.async_show_menu(
@@ -767,10 +775,10 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         """Proceed to the entity/action picker step after confirmation.
 
         Args:
-            _user_input: Unused.
+            _user_input (dict[str, Any] | None): Unused.
 
         Returns:
-            The entity/action picker step's flow result.
+            ConfigFlowResult: The entity/action picker step's flow result.
 
         """
         return await self.async_step_config_commands()
@@ -779,10 +787,10 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         """Show the raw YAML commands step.
 
         Args:
-            _user_input: Unused.
+            _user_input (dict[str, Any] | None): Unused.
 
         Returns:
-            The YAML commands step's flow result.
+            ConfigFlowResult: The YAML commands step's flow result.
 
         """
         return await self.async_step_config_commands_custom()
@@ -791,10 +799,10 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         """Skip straight to the attributes step, keeping commands as-is.
 
         Args:
-            _user_input: Unused.
+            _user_input (dict[str, Any] | None): Unused.
 
         Returns:
-            The attributes step's flow result.
+            ConfigFlowResult: The attributes step's flow result.
 
         """
         return await self.async_step_config_attributes_custom()
@@ -803,10 +811,10 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         """Save the entry directly from the menu, keeping attributes as-is.
 
         Args:
-            _user_input: Unused.
+            _user_input (dict[str, Any] | None): Unused.
 
         Returns:
-            The final flow result, creating or updating the config entry.
+            ConfigFlowResult: The final flow result, creating or updating the config entry.
 
         """
         self._data.setdefault(CONF_ATTRS, {})
@@ -822,10 +830,10 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         is not re-entered here is discarded.
 
         Args:
-            user_input: The submitted form data, or None on first display.
+            user_input (dict[str, Any] | None): The submitted form data, or None on first display.
 
         Returns:
-            The next step's flow result.
+            ConfigFlowResult: The next step's flow result.
 
         """
         errors: dict[str, str] = {}
@@ -888,15 +896,11 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         submission instead of silently falling back to the old value.
 
         Args:
-            user_input: The previously submitted (invalid) form data, if any,
-                so the form can be redisplayed with what the user typed
-                instead of reverting to the previously saved commands.
-            incomplete_keys: Command keys whose entity field should carry a
-                warning marker in its label, because only one of entity/action
-                was filled in on the last submission.
+            user_input (dict[str, Any] | None): The previously submitted (invalid) form data, if any, so the form can be redisplayed with what the user typed instead of reverting to the previously saved commands.
+            incomplete_keys (set[str] | None): Command keys whose entity field should carry a warning marker in its label, because only one of entity/action was filled in on the last submission.
 
         Returns:
-            A tuple of the probatio schema for the actions form, and the
+            tuple[probatio.Schema, dict[str, Any]]: A tuple of the probatio schema for the actions form, and the
             suggested values to overlay on it (keyed by section name).
 
         """
@@ -971,10 +975,10 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         """Handle the YAML review step, the source of truth for commands.
 
         Args:
-            user_input: The submitted form data, or None on first display.
+            user_input (dict[str, Any] | None): The submitted form data, or None on first display.
 
         Returns:
-            The next step's flow result (the config menu, to continue to
+            ConfigFlowResult: The next step's flow result (the config menu, to continue to
             attributes or revise the commands further).
 
         """
@@ -1033,10 +1037,10 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         """Find command keys that don't match a known command.
 
         Args:
-            commands: The command key to command dict mapping.
+            commands (dict[str, Any]): The command key to command dict mapping.
 
         Returns:
-            The set of keys that are not one of the known commands (e.g. a
+            set[str]: The set of keys that are not one of the known commands (e.g. a
             typo like "media_next_trackk"), which would otherwise silently
             have no effect.
 
@@ -1047,18 +1051,20 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         """Find target entity_ids referenced in commands that don't exist.
 
         Args:
-            commands: The command key to command dict mapping.
+            commands (dict[str, Any]): The command key to command dict mapping.
 
         Returns:
-            The set of entity_ids referenced in a target that have no
+            set[str]: The set of entity_ids referenced in a target that have no
             matching state in Home Assistant.
 
         """
         unknown: set[str] = set()
 
         for command in commands.values():
-            entity_id = _static_target(command).get("entity_id")
-            entity_ids = entity_id if isinstance(entity_id, list) else [entity_id] if entity_id else []
+            entity_id: Any = _static_target(command).get("entity_id")
+            entity_ids: list[Any] = (
+                cast("list[Any]", entity_id) if isinstance(entity_id, list) else [entity_id] if entity_id else []
+            )
 
             for candidate in entity_ids:
                 if isinstance(candidate, Template):
@@ -1073,10 +1079,10 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         """Find actions referenced in commands that don't match a registered service.
 
         Args:
-            commands: The command key to command dict mapping.
+            commands (dict[str, Any]): The command key to command dict mapping.
 
         Returns:
-            The set of "domain.service" actions that have no matching
+            set[str]: The set of "domain.service" actions that have no matching
             registered Home Assistant service.
 
         """
@@ -1102,12 +1108,10 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         instead of the frontend silently reverting to the previous value.
 
         Args:
-            user_input: The previously submitted (invalid) form data, if any,
-                so the form can be redisplayed with what the user typed
-                instead of reverting to the previously saved commands.
+            user_input (dict[str, Any] | None): The previously submitted (invalid) form data, if any, so the form can be redisplayed with what the user typed instead of reverting to the previously saved commands.
 
         Returns:
-            A tuple of the probatio schema for the review form, and the
+            tuple[probatio.Schema, str]: A tuple of the probatio schema for the review form, and the
             suggested value to overlay on it.
 
         """
@@ -1124,10 +1128,10 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         """Handle the raw YAML attribute overrides step.
 
         Args:
-            user_input: The submitted form data, or None on first display.
+            user_input (dict[str, Any] | None): The submitted form data, or None on first display.
 
         Returns:
-            The config menu's flow result.
+            ConfigFlowResult: The config menu's flow result.
 
         """
         errors: dict[str, str] = {}
@@ -1188,11 +1192,10 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         """Split an attribute override value into its entity_ids and attribute name.
 
         Args:
-            value: The raw value, e.g. "media_player.a-media_player.b|volume_level"
-                or just "media_player.a" (state lookup, no attribute).
+            value (str): The raw value, e.g. "media_player.a-media_player.b|volume_level" or just "media_player.a" (state lookup, no attribute).
 
         Returns:
-            A tuple of the list of referenced entity_ids and the optional
+            tuple[list[str], str | None]: A tuple of the list of referenced entity_ids and the optional
             attribute name.
 
         """
@@ -1204,10 +1207,10 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         """Find entity_ids referenced in attribute overrides that don't exist.
 
         Args:
-            attrs: The attribute name to "entity_id|attribute" mapping.
+            attrs (dict[str, Any]): The attribute name to "entity_id|attribute" mapping.
 
         Returns:
-            The set of entity_ids that have no matching state in Home
+            set[str]: The set of entity_ids that have no matching state in Home
             Assistant.
 
         """
@@ -1229,10 +1232,10 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         does not block saving - it only helps catch obvious typos.
 
         Args:
-            attrs: The attribute name to "entity_id|attribute" mapping.
+            attrs (dict[str, Any]): The attribute name to "entity_id|attribute" mapping.
 
         Returns:
-            A set of "entity_id|attribute" strings for attributes not found
+            set[str]: A set of "entity_id|attribute" strings for attributes not found
             on any of their referenced entities' current state.
 
         """
@@ -1256,7 +1259,7 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         """Create or update the config entry with the accumulated data.
 
         Returns:
-            The final flow result.
+            ConfigFlowResult: The final flow result.
 
         """
         if self._reconfigure_entry is not None:
@@ -1268,10 +1271,10 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         """Handle a reconfigure request, going straight to the config menu.
 
         Args:
-            user_input: Unused; reconfigure always re-enters at the config menu.
+            user_input (dict[str, Any] | None): Unused; reconfigure always re-enters at the config menu.
 
         Returns:
-            The config menu's flow result.
+            ConfigFlowResult: The config menu's flow result.
 
         """
         entry = self._get_reconfigure_entry()
@@ -1285,10 +1288,10 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
         """Import an existing YAML platform configuration.
 
         Args:
-            import_data: The PLATFORM_SCHEMA-validated YAML configuration.
+            import_data (dict[str, Any]): The PLATFORM_SCHEMA-validated YAML configuration.
 
         Returns:
-            The resulting flow result, creating a config entry or aborting
+            ConfigFlowResult: The resulting flow result, creating a config entry or aborting
             if one is already configured for this unique ID.
 
         """
