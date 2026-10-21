@@ -1,8 +1,5 @@
 """Tests for the custom universal media player entity."""
 
-# Tests read states back from the registry and only assert on them once the entity is known to exist.
-# pyright: reportOptionalMemberAccess=false
-
 from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -1214,7 +1211,7 @@ async def test_async_update_refreshes_the_active_child(
     hass.states.async_set(CHILD_TV, MediaPlayerState.PLAYING, {})
 
     player = get_player(hass)
-    await player.async_update()  # pyright: ignore[reportAttributeAccessIssue]
+    await player.async_update()
 
     assert player.extra_state_attributes == {ATTR_ACTIVE_CHILD: CHILD_TV}
 
@@ -1224,7 +1221,7 @@ async def test_yaml_platform_setup_starts_an_import_flow(hass: HomeAssistant) ->
     config = {CONF_NAME: "Imported player", CONF_CHILDREN: [CHILD_TV]}
 
     with patch.object(hass.config_entries.flow, "async_init") as async_init:
-        await async_setup_platform(hass, config, None)  # pyright: ignore[reportArgumentType]
+        await async_setup_platform(hass, config, None)
         await hass.async_block_till_done()
 
     assert async_init.call_args.args == (DOMAIN,)

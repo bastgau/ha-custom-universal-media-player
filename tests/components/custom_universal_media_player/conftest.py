@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 # package, and it lands first on sys.path once Home Assistant mounts the config
 # dir. Importing the repository's package here, at collection time, puts it in
 # sys.modules first so it is the one Home Assistant ends up scanning.
-import custom_components  # noqa: F401  # pylint: disable=unused-import  # pyright: ignore[reportUnusedImport]
+import custom_components  # noqa: F401  # pylint: disable=unused-import
 from custom_components.custom_universal_media_player.const import (
     CONF_ATTRS,
     CONF_CHILDREN,
