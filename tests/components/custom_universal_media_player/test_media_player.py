@@ -1,5 +1,8 @@
 """Tests for the custom universal media player entity."""
 
+# Tests read states back from the registry and only assert on them once the entity is known to exist.
+# pyright: reportOptionalMemberAccess=false
+
 from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -17,7 +20,8 @@ from custom_components.custom_universal_media_player.media_player import async_s
 import pytest
 from pytest_homeassistant_custom_component.common import async_mock_service
 
-from homeassistant.components.media_player import (
+from homeassistant.components.media_player.browse_media import BrowseMedia
+from homeassistant.components.media_player.const import (
     ATTR_APP_ID,
     ATTR_APP_NAME,
     ATTR_GROUP_MEMBERS,
@@ -45,7 +49,6 @@ from homeassistant.components.media_player import (
     ATTR_SOUND_MODE,
     ATTR_SOUND_MODE_LIST,
     DOMAIN as MEDIA_PLAYER_DOMAIN,
-    BrowseMedia,
     MediaClass,
     MediaPlayerEntityFeature,
     MediaPlayerState,
@@ -583,16 +586,7 @@ async def test_state_attributes_are_dropped_when_off(
 
 
 def _command(action: str, entity_id: str = CHILD_SPEAKER) -> dict[str, Any]:
-    """Build a plain command override.
-
-    Args:
-        action: The action the command triggers.
-        entity_id: The entity the command targets.
-
-    Returns:
-        A command dict as the config flow stores it.
-
-    """
+    """Build a plain command override."""
     return {"action": action, "target": {ATTR_ENTITY_ID: entity_id}}
 
 
@@ -809,7 +803,7 @@ async def test_commands_are_dropped_without_an_active_child(
     await get_player(hass).async_turn_on()
     await hass.async_block_till_done()
 
-    assert calls == []
+    assert not calls
 
 
 async def test_override_replaces_the_child_call(
@@ -836,7 +830,7 @@ async def test_override_replaces_the_child_call(
     await get_player(hass).async_turn_on()
     await hass.async_block_till_done()
 
-    assert media_player_calls == []
+    assert not media_player_calls
     assert len(script_calls) == 1
     assert script_calls[0].data[ATTR_ENTITY_ID] == ["script.start_everything"]
 
@@ -1014,7 +1008,7 @@ async def test_seek_ignores_command_overrides(
     await get_player(hass).async_media_seek(30)
     await hass.async_block_till_done()
 
-    assert script_calls == []
+    assert not script_calls
     assert calls[0].data[ATTR_ENTITY_ID] == CHILD_TV
 
 
@@ -1058,15 +1052,7 @@ async def test_toggle_without_an_override_turns_on_or_off(
 
 
 def _browse_media_entity(browsed: BrowseMedia | None = None) -> Mock:
-    """Build a stand-in media player entity that can browse media.
-
-    Args:
-        browsed: The browse result the entity returns.
-
-    Returns:
-        A mock entity whose async_browse_media returns ``browsed``.
-
-    """
+    """Build a stand-in media player entity that can browse media."""
     entity = Mock()
     entity.async_browse_media = AsyncMock(return_value=browsed)
     return entity
@@ -1228,7 +1214,7 @@ async def test_async_update_refreshes_the_active_child(
     hass.states.async_set(CHILD_TV, MediaPlayerState.PLAYING, {})
 
     player = get_player(hass)
-    await player.async_update()
+    await player.async_update()  # pyright: ignore[reportAttributeAccessIssue]
 
     assert player.extra_state_attributes == {ATTR_ACTIVE_CHILD: CHILD_TV}
 
@@ -1238,7 +1224,7 @@ async def test_yaml_platform_setup_starts_an_import_flow(hass: HomeAssistant) ->
     config = {CONF_NAME: "Imported player", CONF_CHILDREN: [CHILD_TV]}
 
     with patch.object(hass.config_entries.flow, "async_init") as async_init:
-        await async_setup_platform(hass, config, None)
+        await async_setup_platform(hass, config, None)  # pyright: ignore[reportArgumentType]
         await hass.async_block_till_done()
 
     assert async_init.call_args.args == (DOMAIN,)

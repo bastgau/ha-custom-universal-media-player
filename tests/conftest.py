@@ -7,12 +7,4 @@ import pytest
 def auto_enable_custom_integrations(  # pylint: disable=unused-argument
     enable_custom_integrations: None,
 ) -> None:
-    """Enable custom_components/ discovery for every test.
-
-    Args:
-        enable_custom_integrations (None): Upstream fixture doing the actual work.
-
-    Returns:
-        None
-
-    """
+    """Enable custom_components/ discovery for every test, through the upstream fixture."""

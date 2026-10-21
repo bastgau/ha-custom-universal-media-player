@@ -1,6 +1,10 @@
 """Tests for the custom universal media player config flow."""
 
-from typing import Any
+# These tests exercise the private helpers of the config flow module directly.
+# pylint: disable=protected-access
+# pyright: reportPrivateUsage=false, reportOptionalMemberAccess=false, reportOptionalSubscript=false
+
+from typing import Any, cast
 
 from custom_components.custom_universal_media_player.config_flow import (
     CustomUniversalMediaPlayerConfigFlow,
@@ -23,7 +27,7 @@ from custom_components.custom_universal_media_player.const import (
 )
 import pytest
 
-from homeassistant.components.media_player import (
+from homeassistant.components.media_player.const import (
     ATTR_INPUT_SOURCE_LIST,
     ATTR_MEDIA_VOLUME_MUTED,
     DOMAIN as MEDIA_PLAYER_DOMAIN,
@@ -59,17 +63,10 @@ ALL_FEATURES = (
 @pytest.fixture(autouse=True)
 async def _setup_environment(
     hass: HomeAssistant,
-    enable_custom_integrations: None,
-    media_player_component: None,
+    enable_custom_integrations: None,  # pylint: disable=unused-argument
+    media_player_component: None,  # pylint: disable=unused-argument
 ) -> None:
-    """Make the integration loadable and register the media_player actions.
-
-    Args:
-        hass: The Home Assistant instance.
-        enable_custom_integrations: Enables loading from custom_components.
-        media_player_component: Registers the media_player actions.
-
-    """
+    """Make the integration loadable and register the media_player actions."""
     hass.states.async_set(
         CHILD_TV,
         "off",
@@ -89,16 +86,7 @@ async def _setup_environment(
 
 
 async def start_flow(hass: HomeAssistant, children: list[str] | None = None) -> str:
-    """Walk the first two steps and stop on the configuration menu.
-
-    Args:
-        hass: The Home Assistant instance.
-        children: The children to select, defaulting to both fake players.
-
-    Returns:
-        The flow id, sitting on the configuration menu.
-
-    """
+    """Walk the first two steps and stop on the configuration menu."""
     result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "user"
@@ -120,18 +108,8 @@ async def start_flow(hass: HomeAssistant, children: list[str] | None = None) -> 
 
 
 async def choose(hass: HomeAssistant, flow_id: str, step: str) -> dict[str, Any]:
-    """Pick an option in a menu.
-
-    Args:
-        hass: The Home Assistant instance.
-        flow_id: The running flow.
-        step: The menu option to select.
-
-    Returns:
-        The resulting flow result.
-
-    """
-    return await hass.config_entries.flow.async_configure(flow_id, {"next_step_id": step})
+    """Pick an option in a menu."""
+    return cast("dict[str, Any]", await hass.config_entries.flow.async_configure(flow_id, {"next_step_id": step}))
 
 
 async def test_user_flow_creates_an_entry(hass: HomeAssistant) -> None:
@@ -780,7 +758,7 @@ def test_field_name_helpers() -> None:
 
 @pytest.mark.parametrize(
     ("value", "expected"),
-    [
+    [  # pyright: ignore[reportUnknownArgumentType]
         (CHILD_TV, ([CHILD_TV], None)),
         (f"{CHILD_TV}|volume_level", ([CHILD_TV], "volume_level")),
         (f" {CHILD_TV} - {CHILD_SPEAKER} | volume_level ", ([CHILD_TV, CHILD_SPEAKER], "volume_level")),
@@ -822,16 +800,7 @@ def test_find_unknown_command_keys() -> None:
 
 
 def _section_suggestions(result: dict[str, Any], category: str) -> dict[str, Any]:
-    """Read back the values suggested for a category of the guided picker.
-
-    Args:
-        result: The flow result holding the picker's schema.
-        category: The command category to read.
-
-    Returns:
-        The suggested value of every field of that category's section.
-
-    """
+    """Read back the values suggested for a category of the guided picker."""
     for key, value in result["data_schema"].schema.items():
         if str(key) != _category_section(category):
             continue
