@@ -175,7 +175,7 @@ def check_yaml_screens_preserve_input_on_error() -> None:
 def check_yaml_screens_have_no_static_default() -> None:
     """Regression test: YAML textarea fields must not use a static default.
 
-    A vol.Optional(key, default=...) field is silently re-filled by the
+    A probatio.Optional(key, default=...) field is silently re-filled by the
     frontend even after the user clears the textarea and submits it empty,
     because "empty" is treated as "revert to default" rather than as a real
     empty value. The preview must be passed as a suggested_value instead
@@ -183,7 +183,7 @@ def check_yaml_screens_have_no_static_default() -> None:
     never re-injected - only that way does submitting an empty textarea
     actually clear the stored commands/attributes.
     """
-    import voluptuous as vol  # noqa: PLC0415
+    import probatio  # noqa: PLC0415
 
     import custom_universal_media_player.config_flow as cf  # noqa: PLC0415
     from custom_universal_media_player.const import CONF_ATTRS, CONF_COMMANDS  # noqa: PLC0415
@@ -191,7 +191,7 @@ def check_yaml_screens_have_no_static_default() -> None:
     async def _check_commands_review_clears() -> None:
         flow = _make_flow(cf, {CONF_COMMANDS: {"turn_on": {"action": "media_player.turn_on"}}})
         field = next(iter(flow._commands_review_schema()[0].schema))  # noqa: SLF001
-        no_static_default = field.default is vol.UNDEFINED
+        no_static_default = field.default is probatio.UNDEFINED
 
         await flow.async_step_config_commands_custom({CONF_COMMANDS: ""})
         report(
@@ -204,7 +204,7 @@ def check_yaml_screens_have_no_static_default() -> None:
         flow = _make_flow(cf, {CONF_ATTRS: {"state": "media_player.bedroom"}}, known_entities={"media_player.bedroom"})
         result = await flow.async_step_config_attributes_custom()
         field = next(iter(result["data_schema"].schema))
-        no_static_default = field.default is vol.UNDEFINED
+        no_static_default = field.default is probatio.UNDEFINED
 
         await flow.async_step_config_attributes_custom({CONF_ATTRS: ""})
         report(
