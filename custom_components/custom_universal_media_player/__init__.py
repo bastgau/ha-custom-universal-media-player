@@ -28,11 +28,11 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Migrate a config entry to the current schema.
 
     Args:
-        hass: The Home Assistant instance.
-        entry: The config entry to migrate.
+        hass (HomeAssistant): The Home Assistant instance.
+        entry (ConfigEntry): The config entry to migrate.
 
     Returns:
-        True if the entry could be migrated.
+        bool: True if the entry could be migrated.
 
     """
     if entry.version > 1:
@@ -54,11 +54,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up the custom universal media player from a config entry.
 
     Args:
-        hass: The Home Assistant instance.
-        entry: The config entry to set up.
+        hass (HomeAssistant): The Home Assistant instance.
+        entry (ConfigEntry): The config entry to set up.
 
     Returns:
-        True if the setup was successful.
+        bool: True if the setup was successful.
 
     """
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -69,11 +69,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a custom universal media player config entry.
 
     Args:
-        hass: The Home Assistant instance.
-        entry: The config entry to unload.
+        hass (HomeAssistant): The Home Assistant instance.
+        entry (ConfigEntry): The config entry to unload.
 
     Returns:
-        True if the unload was successful.
+        bool: True if the unload was successful.
 
     """
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
