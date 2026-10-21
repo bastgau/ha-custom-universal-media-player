@@ -10,5 +10,5 @@
   "issue_tracker": "https://github.com/bastgau/ha-custom-universal-media-player/issues",
   "loggers": ["custom_universal_media_player"],
   "requirements": [],
-  "version": "v1.3.0"
+  "version": "0.0.0"
 }
