@@ -1,6 +1,5 @@
 # Custom universal media player for Home Assistant
 
-
 [![Maintainer : bastgau](https://img.shields.io/badge/maintainer-bastgau-orange?logo=github&logoColor=%23959da5&labelColor=%232d333a)](https://github.com/bastgau)
 [![Made with Python](https://img.shields.io/badge/Made_with-Python-blue?style=flat&logo=python&logoColor=%23959da5&labelColor=%232d333a)](https://www.python.org/)
 [![Made for Home Assistant](https://img.shields.io/badge/Made_for-Homeassistant-blue?style=flat&logo=homeassistant&logoColor=%23959da5&labelColor=%232d333a)](https://www.home-assistant.io/)
@@ -13,7 +12,7 @@
 </p>
 
 > [!IMPORTANT]
-> Starting from this version, this integration requires **Home Assistant 2026.7.0 or newer**. If you are running an older version of Home Assistant, please stay on a previous release of this integration.
+> Starting from this version, this integration requires **Home Assistant 2026.10.0 or newer**. If you are running an older version of Home Assistant, please stay on a previous release of this integration.
 
 Original component : [Universal media player](https://www.home-assistant.io/integrations/universal/)
 
@@ -58,7 +57,6 @@ List of attributes added and now accessible:
 
 [![Add Integration](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=custom_universal_media_player)
 
-
 ### Manual Installation
 
 1. Download the integration files from the GitHub repository.
@@ -67,7 +65,6 @@ List of attributes added and now accessible:
 4. Set up the integration using the UI:
 
 [![Add Integration](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=custom_universal_media_player)
-
 
 ## Configuration
 
@@ -92,12 +89,12 @@ Only `state_template`, `active_child_template` and the `data`/`target`/`action` 
 ## Example
 
 The parent media player is a [Music Assistant](https://github.com/music-assistant/hass-music-assistant) media player.  
-The child media player is a [Mini Google Home](https://www.home-assistant.io/integrations/cast). 
+The child media player is a [Mini Google Home](https://www.home-assistant.io/integrations/cast).
 
-1. If the _Music Assistant media player_ is playing, the _custom universal media player_ will reflect its attributes except the attributes listed in attributes node.  
+1. If the _Music Assistant media player_ is playing, the _custom universal media player_ will reflect its attributes except the attributes listed in attributes node.
 2. If the _Music Assistant media player_ is idle and _Google Home_ is playing, the _custom universal media player_ will change to reflect the active player attributes.
 
-In this example, most actions are overridden by the child media player (_Google Home_). Only the specific _Music Assistant media player_ actions are *not* overridden.
+In this example, most actions are overridden by the child media player (_Google Home_). Only the specific _Music Assistant media player_ actions are _not_ overridden.
 
 ```yaml
 media_player:
@@ -184,27 +181,27 @@ volume_set:
   target:
     entity_id: number.rx_v685_volume
   data:
-    value: "{{ volume_level }}"       # not volume_level: ...
+    value: "{{ volume_level }}" # not volume_level: ...
 select_source:
   action: input_select.select_option
   target:
     entity_id: input_select.media_activity
   data:
-    option: "{{ source }}"            # not source: ...
+    option: "{{ source }}" # not source: ...
 ```
 
 The variables available are the ones the command itself carries:
 
-| Command | Variables |
-| --- | --- |
-| `volume_set` | `volume_level` (float, `0`-`1`) |
-| `volume_mute` | `is_volume_muted` (boolean) |
-| `select_source` | `source` |
-| `select_sound_mode` | `sound_mode` |
-| `play_media` | `media_content_type`, `media_content_id` |
-| `shuffle_set` | `shuffle` (boolean) |
-| `repeat_set` | `repeat` (`off`, `all`, `one`) |
-| `join` | `group_members` (list of entity IDs) |
+| Command             | Variables                                |
+| ------------------- | ---------------------------------------- |
+| `volume_set`        | `volume_level` (float, `0`-`1`)          |
+| `volume_mute`       | `is_volume_muted` (boolean)              |
+| `select_source`     | `source`                                 |
+| `select_sound_mode` | `sound_mode`                             |
+| `play_media`        | `media_content_type`, `media_content_id` |
+| `shuffle_set`       | `shuffle` (boolean)                      |
+| `repeat_set`        | `repeat` (`off`, `all`, `one`)           |
+| `join`              | `group_members` (list of entity IDs)     |
 
 Every other command (`turn_on`, `media_play`, `volume_up`, `unjoin`, ...) carries no value, so its `data` only needs whatever the target action requires. Templates are free to read the rest of Home Assistant too, which is how a stepped volume is built without any variable:
 
@@ -225,17 +222,16 @@ Found a bug or have a feature request? Please open an [issue](https://github.com
 
 ### Running the tests
 
-The test suite runs against the real Home Assistant test harness: the core test
-helpers are vendored under `tests/`, from the core version pinned in
-`requirements.txt`.
+The test suite runs on `pytest-homeassistant-custom-component`, pinned in
+`pyproject.toml` together with the Home Assistant version it is built for.
 
 ```bash
-scripts/setup   # installs requirements_test.txt
+scripts/setup   # installs the project environment with uv
 scripts/test
 ```
 
-See [tests/README.md](tests/README.md) for the layout, how to refresh the
-vendored helpers and what the shared fixtures offer.
+`scripts/lint` runs the same checks as the CI. See
+[scripts/README.md](scripts/README.md) for every script.
 
 ## License
 

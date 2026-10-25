@@ -4,13 +4,12 @@ from __future__ import annotations
 
 from copy import copy
 import logging
-from typing import TYPE_CHECKING, Any, override
+from typing import TYPE_CHECKING, Any, cast, override
 from urllib.parse import urlparse
 
-import voluptuous as vol
+import probatio
 
 from homeassistant.components.media_player import (
-    DEVICE_CLASSES_SCHEMA,
     PLATFORM_SCHEMA as MEDIA_PLAYER_PLATFORM_SCHEMA,
     MediaPlayerEntity,
 )
@@ -42,6 +41,7 @@ from homeassistant.components.media_player.const import (
     ATTR_MEDIA_VOLUME_MUTED,
     ATTR_SOUND_MODE,
     ATTR_SOUND_MODE_LIST,
+    DEVICE_CLASSES_SCHEMA,
     DOMAIN as MEDIA_PLAYER_DOMAIN,
     SERVICE_CLEAR_PLAYLIST,
     SERVICE_JOIN,
@@ -167,17 +167,17 @@ CMD_SCHEMA: Any = cv.schema_with_slug_keys(cv.SERVICE_SCHEMA)  # pyright: ignore
 
 PLATFORM_SCHEMA = MEDIA_PLAYER_PLATFORM_SCHEMA.extend(  # pyright: ignore[reportUnknownMemberType]
     {
-        vol.Required(CONF_NAME): cv.string,
-        vol.Optional(CONF_CHILDREN, default=[]): cv.entity_ids,  # pyright: ignore[reportUnknownMemberType]
-        vol.Optional(CONF_COMMANDS, default={}): CMD_SCHEMA,
-        vol.Optional(CONF_ATTRS, default={}): vol.Or(cv.ensure_list(ATTRS_SCHEMA), ATTRS_SCHEMA),
-        vol.Optional(CONF_BROWSE_MEDIA_ENTITY): cv.entity_id,
-        vol.Optional(CONF_UNIQUE_ID): cv.string,
-        vol.Optional(CONF_DEVICE_CLASS): DEVICE_CLASSES_SCHEMA,
-        vol.Optional(CONF_ACTIVE_CHILD_TEMPLATE): cv.template,
-        vol.Optional(CONF_STATE_TEMPLATE): cv.template,
+        probatio.Required(CONF_NAME): cv.string,
+        probatio.Optional(CONF_CHILDREN, default=[]): cv.entity_ids,  # pyright: ignore[reportUnknownMemberType]
+        probatio.Optional(CONF_COMMANDS, default={}): CMD_SCHEMA,
+        probatio.Optional(CONF_ATTRS, default={}): probatio.Or(cv.ensure_list(ATTRS_SCHEMA), ATTRS_SCHEMA),
+        probatio.Optional(CONF_BROWSE_MEDIA_ENTITY): cv.entity_id,
+        probatio.Optional(CONF_UNIQUE_ID): cv.string,
+        probatio.Optional(CONF_DEVICE_CLASS): DEVICE_CLASSES_SCHEMA,
+        probatio.Optional(CONF_ACTIVE_CHILD_TEMPLATE): cv.template,
+        probatio.Optional(CONF_STATE_TEMPLATE): cv.template,
     },
-    extra=vol.REMOVE_EXTRA,
+    extra=probatio.REMOVE_EXTRA,
 )
 
 
@@ -189,10 +189,10 @@ def _attr_entity_ids_are_valid(entity_part: str | None) -> bool:
     there is read verbatim as an entity_id, which silently resolves to nothing.
 
     Args:
-        entity_part: The part of the override left of the "|" separator.
+        entity_part (str | None): The part of the override left of the "|" separator.
 
     Returns:
-        True if every entity_id in the override is a valid one.
+        bool: True if every entity_id in the override is a valid one.
 
     """
     if not entity_part:
@@ -215,10 +215,10 @@ async def async_setup_platform(
     to a config entry (deprecated path, kept during the migration window).
 
     Args:
-        hass: The Home Assistant instance.
-        config: The platform configuration.
-        async_add_entities: Unused; entities are added via async_setup_entry.
-        discovery_info: Optional discovery information.
+        hass (HomeAssistant): The Home Assistant instance.
+        config (ConfigType): The platform configuration.
+        async_add_entities (AddEntitiesCallback): Unused; entities are added via async_setup_entry.
+        discovery_info (DiscoveryInfoType | None): Optional discovery information.
 
     """
     hass.async_create_task(
@@ -234,9 +234,9 @@ async def async_setup_entry(
     """Set up the custom universal media player from a config entry.
 
     Args:
-        hass: The Home Assistant instance.
-        entry: The config entry to set up.
-        async_add_entities: Callback to register new entities.
+        hass (HomeAssistant): The Home Assistant instance.
+        entry (ConfigEntry): The config entry to set up.
+        async_add_entities (AddConfigEntryEntitiesCallback): Callback to register new entities.
 
     """
     config: dict[str, Any] = dict(entry.data)
@@ -249,7 +249,25 @@ async def async_setup_entry(
 
 
 class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many-public-methods,too-many-instance-attributes
-    """Representation of a custom universal media player."""
+    """Representation of a custom universal media player.
+
+    Attributes:
+        hass (HomeAssistant): The Home Assistant instance.
+        _attr_should_poll (bool): Whether Home Assistant polls the entity, disabled as the state is driven by the children.
+        _attr_name (str | None): The name of the entity.
+        _children (list[str]): The entity ids of the child media players.
+        _active_child_template (Template | None): The template selecting the active child.
+        _active_child_template_result (str | None): The last rendered result of the active child template.
+        _cmds (dict[str, Any]): The configured commands, keyed by service name.
+        _attrs (dict[str, Any]): The configured attribute sources.
+        _child_state (State | None): The state of the currently active child.
+        _state_template_result (str | None): The last rendered result of the state template.
+        _state_template (Template | None): The template overriding the entity state.
+        _attr_device_class (str | None): The device class of the entity.
+        _attr_unique_id (str | None): The unique identifier of the entity.
+        _browse_media_entity (str | None): The entity id used to browse media.
+
+    """
 
     _attr_should_poll = False
 
@@ -261,8 +279,8 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Initialize the Custom universal media device.
 
         Args:
-            hass: The Home Assistant instance.
-            config: The platform configuration dictionary.
+            hass (HomeAssistant): The Home Assistant instance.
+            config (dict[str, Any]): The platform configuration dictionary.
 
         """
         self.hass = hass
@@ -382,11 +400,11 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         and returns the first non-None value found.
 
         Args:
-            entity_id: A single entity ID or multiple IDs joined by '-'.
-            state_attr: Optional attribute name to retrieve instead of the state.
+            entity_id (str): A single entity ID or multiple IDs joined by '-'.
+            state_attr (str | None): Optional attribute name to retrieve instead of the state.
 
         Returns:
-            The state string or attribute value of the first matching entity,
+            Any: The state string or attribute value of the first matching entity,
             or None if no match is found.
 
         """
@@ -417,10 +435,10 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         attribute is retrieved from the active child entity.
 
         Args:
-            attr_name: The name of the attribute to retrieve.
+            attr_name (str): The name of the attribute to retrieve.
 
         Returns:
-            The attribute value from the override entity or from the active child,
+            Any: The attribute value from the override entity or from the active child,
             or None if neither is available.
 
         """
@@ -433,10 +451,10 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Return the active child's attributes.
 
         Args:
-            attr_name: The name of the attribute to retrieve from the active child.
+            attr_name (str): The name of the attribute to retrieve from the active child.
 
         Returns:
-            The attribute value from the active child entity, or None if there
+            Any: The attribute value from the active child entity, or None if there
             is no active child.
 
         """
@@ -467,10 +485,9 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         to the active child, same as a non-overridden command would.
 
         Args:
-            service_name: The name of the media player service to call.
-            service_data: Optional dictionary of service call parameters.
-            allow_override: Whether to check for a command override before
-                falling back to the active child.
+            service_name (str): The name of the media player service to call.
+            service_data (dict[str, Any] | None): Optional dictionary of service call parameters.
+            allow_override (bool): Whether to check for a command override before falling back to the active child.
 
         """
         if service_data is None:
@@ -521,7 +538,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Return the master state for entity or None.
 
         Returns:
-            The result of the state template if defined, the state from the
+            Any: The result of the state template if defined, the state from the
             configured state attribute entity if present, or None otherwise.
 
         """
@@ -539,7 +556,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Return True if unable to access real state of the entity.
 
         Returns:
-            The assumed state value from the active child, or None if no child is active.
+            bool | None: The assumed state value from the active child, or None if no child is active.
 
         """
         return self._child_attr(ATTR_ASSUMED_STATE)
@@ -553,7 +570,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         else master state or off.
 
         Returns:
-            The current MediaPlayerState, or None if undetermined.
+            MediaPlayerState | str | None: The current MediaPlayerState, or None if undetermined.
 
         """
         master_state = self.master_state  # avoid multiple lookups
@@ -571,7 +588,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Volume level of entity specified in attributes or active child.
 
         Returns:
-            The volume level as a float between 0 and 1, or None if unavailable
+            float | None: The volume level as a float between 0 and 1, or None if unavailable
             or not parseable.
 
         """
@@ -586,7 +603,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Boolean if volume is muted.
 
         Returns:
-            True if the volume is muted, False otherwise.
+            bool: True if the volume is muted, False otherwise.
 
         """
         return self._override_or_child_attr(ATTR_MEDIA_VOLUME_MUTED) in [True, STATE_ON]
@@ -597,7 +614,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Return the content ID of current playing media.
 
         Returns:
-            The media content ID string, or None if unavailable.
+            str | None: The media content ID string, or None if unavailable.
 
         """
         return self._child_attr(ATTR_MEDIA_CONTENT_ID)
@@ -608,7 +625,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Return the content type of current playing media.
 
         Returns:
-            The media content type string, or None if unavailable.
+            str | None: The media content type string, or None if unavailable.
 
         """
         return self._override_or_child_attr(ATTR_MEDIA_CONTENT_TYPE)
@@ -619,7 +636,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Return the duration of current playing media in seconds.
 
         Returns:
-            The media duration as a number, or None if unavailable.
+            float | None: The media duration as a number, or None if unavailable.
 
         """
         return self._override_or_child_attr(ATTR_MEDIA_DURATION)
@@ -630,7 +647,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Image url of current playing media.
 
         Returns:
-            The URL string of the media image, or None if unavailable.
+            str | None: The URL string of the media image, or None if unavailable.
 
         """
         return self._override_or_child_attr(ATTR_ENTITY_PICTURE)
@@ -645,7 +662,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         sent through the API proxy.
 
         Returns:
-            The URL string of the entity picture, or None if unavailable.
+            str | None: The URL string of the entity picture, or None if unavailable.
 
         """
         return self.media_image_url
@@ -656,7 +673,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Title of current playing media.
 
         Returns:
-            The media title string, or None if unavailable.
+            str | None: The media title string, or None if unavailable.
 
         """
         return self._override_or_child_attr(ATTR_MEDIA_TITLE)
@@ -667,7 +684,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Artist of current playing media (Music track only).
 
         Returns:
-            The artist name string, or None if unavailable.
+            str | None: The artist name string, or None if unavailable.
 
         """
         return self._override_or_child_attr(ATTR_MEDIA_ARTIST)
@@ -678,7 +695,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Album name of current playing media (Music track only).
 
         Returns:
-            The album name string, or None if unavailable.
+            str | None: The album name string, or None if unavailable.
 
         """
         return self._override_or_child_attr(ATTR_MEDIA_ALBUM_NAME)
@@ -689,7 +706,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Album artist of current playing media (Music track only).
 
         Returns:
-            The album artist name string, or None if unavailable.
+            str | None: The album artist name string, or None if unavailable.
 
         """
         return self._override_or_child_attr(ATTR_MEDIA_ALBUM_ARTIST)
@@ -700,7 +717,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Track number of current playing media (Music track only).
 
         Returns:
-            The track number, or None if unavailable.
+            str | None: The track number, or None if unavailable.
 
         """
         return self._override_or_child_attr(ATTR_MEDIA_TRACK)
@@ -711,7 +728,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Return the title of the series of current playing media (TV).
 
         Returns:
-            The series title string, or None if unavailable.
+            str | None: The series title string, or None if unavailable.
 
         """
         return self._override_or_child_attr(ATTR_MEDIA_SERIES_TITLE)
@@ -722,7 +739,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Season of current playing media (TV Show only).
 
         Returns:
-            The season identifier, or None if unavailable.
+            str | None: The season identifier, or None if unavailable.
 
         """
         return self._override_or_child_attr(ATTR_MEDIA_SEASON)
@@ -733,7 +750,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Episode of current playing media (TV Show only).
 
         Returns:
-            The episode identifier, or None if unavailable.
+            str | None: The episode identifier, or None if unavailable.
 
         """
         return self._override_or_child_attr(ATTR_MEDIA_EPISODE)
@@ -744,7 +761,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Channel currently playing.
 
         Returns:
-            The channel name string, or None if unavailable.
+            str | None: The channel name string, or None if unavailable.
 
         """
         return self._override_or_child_attr(ATTR_MEDIA_CHANNEL)
@@ -755,7 +772,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Title of Playlist currently playing.
 
         Returns:
-            The playlist title string, or None if unavailable.
+            str | None: The playlist title string, or None if unavailable.
 
         """
         return self._override_or_child_attr(ATTR_MEDIA_PLAYLIST)
@@ -766,7 +783,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """ID of the current running app.
 
         Returns:
-            The application ID string, or None if unavailable.
+            str | None: The application ID string, or None if unavailable.
 
         """
         return self._override_or_child_attr(ATTR_APP_ID)
@@ -777,7 +794,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Name of the current running app.
 
         Returns:
-            The application name string, or None if unavailable.
+            str | None: The application name string, or None if unavailable.
 
         """
         return self._override_or_child_attr(ATTR_APP_NAME)
@@ -788,7 +805,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Return the current sound mode of the device.
 
         Returns:
-            The current sound mode string, or None if unavailable.
+            str | None: The current sound mode string, or None if unavailable.
 
         """
         return self._override_or_child_attr(ATTR_SOUND_MODE)
@@ -799,7 +816,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """List of available sound modes.
 
         Returns:
-            A list of sound mode strings, or None if unavailable.
+            list[str] | None: A list of sound mode strings, or None if unavailable.
 
         """
         return self._override_or_child_attr(ATTR_SOUND_MODE_LIST)
@@ -810,7 +827,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Return the current input source of the device.
 
         Returns:
-            The current input source string, or None if unavailable.
+            str | None: The current input source string, or None if unavailable.
 
         """
         return self._override_or_child_attr(ATTR_INPUT_SOURCE)
@@ -821,7 +838,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """List of available input sources.
 
         Returns:
-            A list of input source strings, or None if unavailable.
+            list[str] | None: A list of input source strings, or None if unavailable.
 
         """
         return self._override_or_child_attr(ATTR_INPUT_SOURCE_LIST)
@@ -832,7 +849,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Indicate if repeating is enabled.
 
         Returns:
-            The current repeat mode value, or None if unavailable.
+            RepeatMode | None: The current repeat mode value, or None if unavailable.
 
         """
         return self._override_or_child_attr(ATTR_MEDIA_REPEAT)
@@ -843,7 +860,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Boolean if shuffling is enabled.
 
         Returns:
-            True if shuffle is enabled, False if disabled, or None if unavailable.
+            bool | None: True if shuffle is enabled, False if disabled, or None if unavailable.
 
         """
         return self._override_or_child_attr(ATTR_MEDIA_SHUFFLE)
@@ -854,7 +871,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Flag media player features that are supported.
 
         Returns:
-            A MediaPlayerEntityFeature bitmask representing all supported features,
+            MediaPlayerEntityFeature: A MediaPlayerEntityFeature bitmask representing all supported features,
             combining child entity capabilities with any configured command overrides.
 
         """
@@ -922,7 +939,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Return device specific state attributes.
 
         Returns:
-            A dictionary containing the active child entity ID under the
+            dict[str, Any]: A dictionary containing the active child entity ID under the
             ATTR_ACTIVE_CHILD key, or an empty dictionary if no child is active.
 
         """
@@ -935,7 +952,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Position of current playing media in seconds.
 
         Returns:
-            The current media position as a number, or None if unavailable.
+            float | None: The current media position as a number, or None if unavailable.
 
         """
         return self._override_or_child_attr(ATTR_MEDIA_POSITION)
@@ -946,7 +963,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """When was the position of the current playing media valid.
 
         Returns:
-            A datetime representing when the media position was last updated,
+            datetime | None: A datetime representing when the media position was last updated,
             or None if unavailable.
 
         """
@@ -957,7 +974,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Return the state attributes.
 
         Returns:
-            A dictionary of state attributes for the media player. Returns an
+            dict[str, Any]: A dictionary of state attributes for the media player. Returns an
             empty dictionary when the player is off. Includes all standard media
             player attributes and the local entity picture if applicable.
 
@@ -1001,7 +1018,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Mute the volume.
 
         Args:
-            mute: True to mute, False to unmute.
+            mute (bool): True to mute, False to unmute.
 
         """
         data = {ATTR_MEDIA_VOLUME_MUTED: mute}
@@ -1012,7 +1029,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Set volume level, range 0..1.
 
         Args:
-            volume: The desired volume level as a float between 0 and 1.
+            volume (float): The desired volume level as a float between 0 and 1.
 
         """
         data = {ATTR_MEDIA_VOLUME_LEVEL: volume}
@@ -1048,7 +1065,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Send seek command.
 
         Args:
-            position: The target position in seconds to seek to.
+            position (float): The target position in seconds to seek to.
 
         """
         data = {ATTR_MEDIA_SEEK_POSITION: position}
@@ -1059,9 +1076,9 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Play a piece of media.
 
         Args:
-            media_type: The type of media to play (e.g. music, video).
-            media_id: The ID or URL of the media to play.
-            **kwargs: Additional optional parameters passed to the service.
+            media_type (MediaType | str): The type of media to play (e.g. music, video).
+            media_id (str): The ID or URL of the media to play.
+            **kwargs (Any): Additional optional parameters passed to the service.
 
         """
         data = {ATTR_MEDIA_CONTENT_TYPE: media_type, ATTR_MEDIA_CONTENT_ID: media_id}
@@ -1087,7 +1104,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Select sound mode.
 
         Args:
-            sound_mode: The sound mode to select.
+            sound_mode (str): The sound mode to select.
 
         """
         data = {ATTR_SOUND_MODE: sound_mode}
@@ -1098,7 +1115,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Set the input source.
 
         Args:
-            source: The input source to select.
+            source (str): The input source to select.
 
         """
         data = {ATTR_INPUT_SOURCE: source}
@@ -1120,7 +1137,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         its own active child before the service call.
 
         Args:
-            group_members: The entity IDs of the players to join.
+            group_members (list[str]): The entity IDs of the players to join.
 
         """
         resolved_members = [self._resolve_real_entity_id(entity_id) for entity_id in group_members]
@@ -1131,11 +1148,10 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Resolve a group member to a real (non-virtual) entity ID.
 
         Args:
-            entity_id: The entity ID to resolve, possibly another
-                custom_universal_media_player entity.
+            entity_id (str): The entity ID to resolve, possibly another custom_universal_media_player entity.
 
         Returns:
-            The entity's own active_child entity ID if it is another
+            str: The entity's own active_child entity ID if it is another
             custom_universal_media_player instance, otherwise the entity ID
             unchanged.
 
@@ -1159,7 +1175,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         when no matching virtual entity is found.
 
         Returns:
-            The list of group member entity IDs, or None if the active
+            list[str] | None: The list of group member entity IDs, or None if the active
             child doesn't report any.
 
         """
@@ -1173,7 +1189,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
             if ATTR_ACTIVE_CHILD in state.attributes
         }
 
-        return [real_to_virtual.get(entity_id, entity_id) for entity_id in real_members]
+        return [real_to_virtual.get(entity_id, entity_id) for entity_id in cast("list[str]", real_members)]
 
     @override
     async def async_unjoin_player(self) -> None:
@@ -1185,7 +1201,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Enable/disable shuffling.
 
         Args:
-            shuffle: True to enable shuffle, False to disable.
+            shuffle (bool): True to enable shuffle, False to disable.
 
         """
         data = {ATTR_MEDIA_SHUFFLE: shuffle}
@@ -1196,7 +1212,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         """Set repeat mode.
 
         Args:
-            repeat: The repeat mode to set.
+            repeat (RepeatMode): The repeat mode to set.
 
         """
         data = {ATTR_MEDIA_REPEAT: repeat}
@@ -1223,11 +1239,11 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         to the active child entity.
 
         Args:
-            media_content_type: Optional media content type to browse.
-            media_content_id: Optional media content ID to browse from.
+            media_content_type (MediaType | str | None): Optional media content type to browse.
+            media_content_id (str | None): Optional media content ID to browse from.
 
         Returns:
-            A BrowseMedia instance from the target entity.
+            BrowseMedia: A BrowseMedia instance from the target entity.
 
         Raises:
             NotImplementedError: If no valid target entity is found.

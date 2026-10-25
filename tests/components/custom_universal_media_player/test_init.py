@@ -1,6 +1,8 @@
 """Tests for the custom universal media player setup and teardown."""
 
-from homeassistant.components.media_player import MediaPlayerDeviceClass
+from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+from homeassistant.components.media_player.const import MediaPlayerDeviceClass
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import ATTR_DEVICE_CLASS, CONF_DEVICE_CLASS, STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
@@ -8,12 +10,10 @@ from homeassistant.helpers import entity_registry as er
 
 from .conftest import PLAYER, UNIQUE_ID, SetupPlayer
 
-from tests.common import MockConfigEntry
-
 
 async def test_setup_entry_adds_the_player(
     hass: HomeAssistant,
-    enable_custom_integrations: None,  # noqa: ARG001
+    enable_custom_integrations: None,  # pylint: disable=unused-argument
     mock_config_entry: MockConfigEntry,
 ) -> None:
     """The config entry loads and its media player entity shows up."""
@@ -28,7 +28,7 @@ async def test_setup_entry_adds_the_player(
 
 async def test_unload_entry_removes_the_player(
     hass: HomeAssistant,
-    enable_custom_integrations: None,  # noqa: ARG001
+    enable_custom_integrations: None,  # pylint: disable=unused-argument
     mock_config_entry: MockConfigEntry,
 ) -> None:
     """Unloading the config entry leaves its entity behind as unavailable."""

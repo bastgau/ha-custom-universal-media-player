@@ -1,0 +1,5 @@
+INTEGRATION_DOMAIN=custom_universal_media_player
+INTEGRATION_NAME=Custom universal media player
+CLIENT_PACKAGE=
+CLIENT_TESTS_PATH=
+PYTHON_VERSION=3.14
