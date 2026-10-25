@@ -7,8 +7,8 @@
 [![HACS validation](https://github.com/bastgau/ha-custom-universal-media-player/actions/workflows/validate-for-hacs.yml/badge.svg)](https://github.com/bastgau/ha-custom-universal-media-player/actions/workflows/validate-for-hacs.yml)
 [![HASSFEST validation](https://github.com/bastgau/ha-custom-universal-media-player/actions/workflows/validate-with-hassfest.yml/badge.svg)](https://github.com/bastgau/ha-custom-universal-media-player/actions/workflows/validate-with-hassfest.yml)
 
-<p align="center" width="100%">
-    <img src="https://brands.home-assistant.io/_/custom_universal_media_player/logo.png">
+<p align="center" width="192">
+    <img src="https://raw.githubusercontent.com/bastgau/ha-custom-universal-media-player/refs/heads/main/custom_components/custom_universal_media_player/brand/icon.png">
 </p>
 
 > [!IMPORTANT]
