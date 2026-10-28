@@ -1,7 +1,1 @@
-{
-    "files.insertFinalNewline": true,
-    "files.exclude": {
-        ".ruff_cache": true,
-        "**/__pycache__": true
-    }
-}
+{}
