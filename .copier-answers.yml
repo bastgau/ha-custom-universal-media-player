@@ -1,9 +1,13 @@
 # Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
-_commit: v0.10.0
+_commit: v0.13.0
 _src_path: gh:bastgau/ha-dev-environment
+author_email: contact@bastiengautier.com
+author_name: Bastien Gautier
 client_package: ''
+copyright_year: 2024
 description: A universal media player can combine multiple existing entities in Home
     Assistant into a single media player entity.
+github_owner: bastgau
 integration_domain: custom_universal_media_player
 integration_name: Custom universal media player
 python_requires: '>=3.14.2,<3.15'
