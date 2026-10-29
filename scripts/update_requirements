@@ -38,6 +38,7 @@ REQUIREMENTS_FILE = REPO_ROOT / ".devcontainer" / "requirements-default-config.t
 # they're listed here explicitly.
 EXTRA_COMPONENTS = {
     "esphome",
+    "google_translate",
     "met",
     "radio_browser",
     "shopping_list",
