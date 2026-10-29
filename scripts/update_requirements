@@ -23,6 +23,7 @@ import sys
 from typing import Any
 
 import homeassistant
+from homeassistant.const import BASE_PLATFORMS
 
 Manifest = dict[str, Any]
 
@@ -75,6 +76,10 @@ def collect_components(components_dir: Path) -> set[str]:
     for dep in default_config_manifest.get("dependencies", []):
         expand(dep)
     for component in EXTRA_COMPONENTS:
+        expand(component)
+    # Home Assistant's bootstrap sets up every base platform (infrared,
+    # radio_frequency...) whether or not default_config asks for it.
+    for component in BASE_PLATFORMS:
         expand(component)
 
     return seen

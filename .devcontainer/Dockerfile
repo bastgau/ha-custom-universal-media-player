@@ -36,3 +36,12 @@ RUN \
             xz-utils \
             zlib1g-dev \
             vim
+
+# go2rtc (a default_config dependency) refuses to start in a container without
+# its binary on PATH. Version matches RECOMMENDED_VERSION in
+# homeassistant/components/go2rtc/const.py.
+ARG GO2RTC_VERSION=1.9.14
+ARG TARGETARCH
+RUN curl -fsSL -o /usr/local/bin/go2rtc \
+        "https://github.com/AlexxIT/go2rtc/releases/download/v${GO2RTC_VERSION}/go2rtc_linux_${TARGETARCH}" \
+    && chmod +x /usr/local/bin/go2rtc
