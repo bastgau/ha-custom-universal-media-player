@@ -37,8 +37,10 @@ REQUIREMENTS_FILE = REPO_ROOT / ".devcontainer" / "requirements-default-config.t
 # dependency. Their manifests aren't reachable by walking dependencies, so
 # they're listed here explicitly.
 EXTRA_COMPONENTS = {
-    "esphome",  # pulled in by bluetooth for ESPHome bluetooth proxies
-    "cast",  # Google Cast config entry used to test against real devices
+    "esphome",
+    "met",
+    "radio_browser",
+    "shopping_list",
 }
 
 
@@ -114,10 +116,10 @@ def rewrite_requirements_file(new_requirements: dict[str, str]) -> None:
         header_lines = []
         for line in lines:
             if line.startswith("#") or not line.strip():
-                header_lines.append(line)
+                header_lines.append(line)  # pyright: ignore[reportUnknownMemberType]
             else:
                 break
-        header = "\n".join(header_lines).rstrip("\n")
+        header = "\n".join(header_lines).rstrip("\n")  # pyright: ignore[reportUnknownArgumentType]
 
     block_lines = [MARKER] + [new_requirements[pkg] for pkg in sorted(new_requirements)]
     new_text = header + "\n" + "\n".join(block_lines) + "\n"
