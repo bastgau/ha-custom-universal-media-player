@@ -38,6 +38,7 @@ REQUIREMENTS_FILE = REPO_ROOT / ".devcontainer" / "requirements-default-config.t
 # they're listed here explicitly.
 EXTRA_COMPONENTS = {
     "esphome",  # pulled in by bluetooth for ESPHome bluetooth proxies
+    "cast",  # Google Cast config entry used to test against real devices
 }
 
 
