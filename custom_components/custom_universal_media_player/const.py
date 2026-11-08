@@ -1,5 +1,7 @@
 """Provides the constants needed for component."""
 
+from datetime import timedelta
+
 ATTR_ACTIVE_CHILD: str = "active_child"
 ATTR_ENTITY_PICTURE_LOCAL: str = "entity_picture_local"
 CONF_ACTIVE_CHILD_TEMPLATE: str = "active_child_template"
@@ -9,4 +11,6 @@ CONF_CHILDREN: str = "children"
 CONF_COMMANDS: str = "commands"
 CONF_DEVICE_CLASS_NONE: str = "none"
 CONF_IGNORE_SEASON_EPISODE_UNKNOWN: str = "ignore_season_episode_unknown"
+CONF_REFRESH_ACTIVE_CHILD: str = "refresh_active_child"
 DOMAIN: str = "custom_universal_media_player"
+REFRESH_ACTIVE_CHILD_INTERVAL: timedelta = timedelta(seconds=30)

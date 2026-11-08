@@ -74,6 +74,7 @@ from .const import (
     CONF_COMMANDS,
     CONF_DEVICE_CLASS_NONE,
     CONF_IGNORE_SEASON_EPISODE_UNKNOWN,
+    CONF_REFRESH_ACTIVE_CHILD,
     DOMAIN,
 )
 from .media_player import ATTRS_SCHEMA, CMD_SCHEMA
@@ -663,6 +664,7 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
                 self._data[CONF_IGNORE_SEASON_EPISODE_UNKNOWN] = bool(
                     user_input.get(CONF_IGNORE_SEASON_EPISODE_UNKNOWN, False),
                 )
+                self._data[CONF_REFRESH_ACTIVE_CHILD] = bool(user_input.get(CONF_REFRESH_ACTIVE_CHILD, False))
                 return await self.async_step_config_menu()
 
         schema = probatio.Schema(
@@ -676,6 +678,7 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
                 probatio.Optional(CONF_ACTIVE_CHILD_TEMPLATE): TemplateSelector(),
                 probatio.Optional(CONF_STATE_TEMPLATE): TemplateSelector(),
                 probatio.Optional(CONF_IGNORE_SEASON_EPISODE_UNKNOWN, default=False): BooleanSelector(),
+                probatio.Optional(CONF_REFRESH_ACTIVE_CHILD, default=False): BooleanSelector(),
             },
         )
         suggested_values = (
@@ -686,6 +689,7 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
                 CONF_ACTIVE_CHILD_TEMPLATE: self._data.get(CONF_ACTIVE_CHILD_TEMPLATE),
                 CONF_STATE_TEMPLATE: self._data.get(CONF_STATE_TEMPLATE),
                 CONF_IGNORE_SEASON_EPISODE_UNKNOWN: self._data.get(CONF_IGNORE_SEASON_EPISODE_UNKNOWN, False),
+                CONF_REFRESH_ACTIVE_CHILD: self._data.get(CONF_REFRESH_ACTIVE_CHILD, False),
             }
         )
 
@@ -1318,6 +1322,7 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
             CONF_ACTIVE_CHILD_TEMPLATE: active_child_template.template if active_child_template else None,
             CONF_STATE_TEMPLATE: state_template.template if state_template else None,
             CONF_IGNORE_SEASON_EPISODE_UNKNOWN: import_data.get(CONF_IGNORE_SEASON_EPISODE_UNKNOWN, False),
+            CONF_REFRESH_ACTIVE_CHILD: import_data.get(CONF_REFRESH_ACTIVE_CHILD, False),
         }
 
         async_create_issue(

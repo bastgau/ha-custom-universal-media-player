@@ -1,5 +1,6 @@
 """Tests for the custom universal media player entity."""
 
+from datetime import timedelta
 from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -12,11 +13,13 @@ from custom_components.custom_universal_media_player.const import (
     CONF_CHILDREN,
     CONF_COMMANDS,
     CONF_IGNORE_SEASON_EPISODE_UNKNOWN,
+    CONF_REFRESH_ACTIVE_CHILD,
     DOMAIN,
+    REFRESH_ACTIVE_CHILD_INTERVAL,
 )
 from custom_components.custom_universal_media_player.media_player import async_setup_platform
 import pytest
-from pytest_homeassistant_custom_component.common import async_mock_service
+from pytest_homeassistant_custom_component.common import async_fire_time_changed, async_mock_service
 
 from homeassistant.components.media_player.browse_media import BrowseMedia
 from homeassistant.components.media_player.const import (
@@ -376,6 +379,147 @@ async def test_unknown_season_from_an_override_is_hidden_when_enabled(
     await set_child_state(hass, CHILD_TV, MediaPlayerState.PLAYING)
 
     assert ATTR_MEDIA_SEASON not in hass.states.get(PLAYER).attributes
+
+
+async def _fire_refresh_interval(hass: HomeAssistant) -> None:
+    """Move the clock past the active child refresh interval."""
+    async_fire_time_changed(hass, dt_util.utcnow() + REFRESH_ACTIVE_CHILD_INTERVAL + timedelta(seconds=1))
+    await hass.async_block_till_done()
+
+
+async def test_active_child_is_not_refreshed_by_default(
+    hass: HomeAssistant,
+    setup_player: SetupPlayer,
+) -> None:
+    """Without the option, the player never asks its child to refresh."""
+    await setup_player(**{CONF_CHILDREN: [CHILD_TV]})
+    await set_child_state(hass, CHILD_TV, MediaPlayerState.PLAYING)
+
+    target = Mock()
+    target.async_update_ha_state = AsyncMock()
+    component = hass.data[MEDIA_PLAYER_DOMAIN]
+    with patch.object(component, "get_entity", return_value=target):
+        await _fire_refresh_interval(hass)
+
+    target.async_update_ha_state.assert_not_awaited()
+
+
+async def test_playing_active_child_is_refreshed_and_the_title_follows(
+    hass: HomeAssistant,
+    setup_player: SetupPlayer,
+) -> None:
+    """The playing active child is forced to refresh, and its new title reaches the player."""
+    await setup_player(**{CONF_CHILDREN: [CHILD_TV], CONF_REFRESH_ACTIVE_CHILD: True})
+    await set_child_state(hass, CHILD_TV, MediaPlayerState.PLAYING, **{ATTR_MEDIA_TITLE: "Old programme"})
+    assert hass.states.get(PLAYER).attributes[ATTR_MEDIA_TITLE] == "Old programme"
+
+    async def _publish_new_title(**_kwargs: Any) -> None:
+        # A forced refresh makes the child publish what it now plays
+        hass.states.async_set(CHILD_TV, MediaPlayerState.PLAYING, {ATTR_MEDIA_TITLE: "New programme"})
+
+    target = Mock()
+    target.async_update_ha_state = AsyncMock(side_effect=_publish_new_title)
+    component = hass.data[MEDIA_PLAYER_DOMAIN]
+    with patch.object(component, "get_entity", return_value=target) as get_entity:
+        await _fire_refresh_interval(hass)
+
+    assert get_entity.call_args.args == (CHILD_TV,)
+    target.async_update_ha_state.assert_awaited_once_with(force_refresh=True)
+    assert hass.states.get(PLAYER).attributes[ATTR_MEDIA_TITLE] == "New programme"
+
+
+@pytest.mark.parametrize("child_state", [MediaPlayerState.PAUSED, MediaPlayerState.IDLE, MediaPlayerState.OFF])
+async def test_active_child_that_is_not_playing_is_not_refreshed(
+    hass: HomeAssistant,
+    setup_player: SetupPlayer,
+    child_state: MediaPlayerState,
+) -> None:
+    """A child that is not playing is left alone."""
+    await setup_player(**{CONF_CHILDREN: [CHILD_TV], CONF_REFRESH_ACTIVE_CHILD: True})
+    await set_child_state(hass, CHILD_TV, child_state)
+
+    target = Mock()
+    target.async_update_ha_state = AsyncMock()
+    component = hass.data[MEDIA_PLAYER_DOMAIN]
+    with patch.object(component, "get_entity", return_value=target):
+        await _fire_refresh_interval(hass)
+
+    target.async_update_ha_state.assert_not_awaited()
+
+
+async def test_only_the_active_child_is_refreshed(
+    hass: HomeAssistant,
+    setup_player: SetupPlayer,
+) -> None:
+    """With several children, only the one the player shows is refreshed."""
+    await setup_player(**{CONF_CHILDREN: [CHILD_SPEAKER, CHILD_TV], CONF_REFRESH_ACTIVE_CHILD: True})
+    await set_child_state(hass, CHILD_SPEAKER, MediaPlayerState.PAUSED)
+    await set_child_state(hass, CHILD_TV, MediaPlayerState.PLAYING)
+
+    target = Mock()
+    target.async_update_ha_state = AsyncMock()
+    component = hass.data[MEDIA_PLAYER_DOMAIN]
+    with patch.object(component, "get_entity", return_value=target) as get_entity:
+        await _fire_refresh_interval(hass)
+
+    assert [call.args for call in get_entity.call_args_list] == [(CHILD_TV,)]
+    target.async_update_ha_state.assert_awaited_once_with(force_refresh=True)
+
+
+async def test_active_child_without_an_entity_is_skipped(
+    hass: HomeAssistant,
+    setup_player: SetupPlayer,
+) -> None:
+    """A child that is only a state (no entity object behind it) cannot be refreshed."""
+    await setup_player(**{CONF_CHILDREN: [CHILD_TV], CONF_REFRESH_ACTIVE_CHILD: True})
+    await set_child_state(hass, CHILD_TV, MediaPlayerState.PLAYING)
+
+    component = hass.data[MEDIA_PLAYER_DOMAIN]
+    with patch.object(component, "get_entity", return_value=None) as get_entity:
+        await _fire_refresh_interval(hass)
+
+    assert get_entity.call_count == 1
+
+
+async def test_a_failing_refresh_does_not_stop_the_next_ones(
+    hass: HomeAssistant,
+    setup_player: SetupPlayer,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A child raising on refresh is logged and the next interval still refreshes it."""
+    await setup_player(**{CONF_CHILDREN: [CHILD_TV], CONF_REFRESH_ACTIVE_CHILD: True})
+    await set_child_state(hass, CHILD_TV, MediaPlayerState.PLAYING)
+
+    target = Mock()
+    target.async_update_ha_state = AsyncMock(side_effect=RuntimeError("boom"))
+    component = hass.data[MEDIA_PLAYER_DOMAIN]
+    with caplog.at_level("DEBUG"), patch.object(component, "get_entity", return_value=target):
+        await _fire_refresh_interval(hass)
+        async_fire_time_changed(hass, dt_util.utcnow() + 2 * REFRESH_ACTIVE_CHILD_INTERVAL + timedelta(seconds=2))
+        await hass.async_block_till_done()
+
+    assert target.async_update_ha_state.await_count == 2
+    assert f"refreshing {CHILD_TV} failed" in caplog.text
+
+
+async def test_refresh_stops_when_the_player_is_removed(
+    hass: HomeAssistant,
+    setup_player: SetupPlayer,
+) -> None:
+    """Unloading the entry removes the interval."""
+    entry = await setup_player(**{CONF_CHILDREN: [CHILD_TV], CONF_REFRESH_ACTIVE_CHILD: True})
+    await set_child_state(hass, CHILD_TV, MediaPlayerState.PLAYING)
+
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    target = Mock()
+    target.async_update_ha_state = AsyncMock()
+    component = hass.data[MEDIA_PLAYER_DOMAIN]
+    with patch.object(component, "get_entity", return_value=target):
+        await _fire_refresh_interval(hass)
+
+    target.async_update_ha_state.assert_not_awaited()
 
 
 @pytest.mark.parametrize(
