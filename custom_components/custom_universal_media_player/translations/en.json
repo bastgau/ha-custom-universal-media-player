@@ -179,12 +179,14 @@
         "data": {
           "browse_media_entity": "Browse media entity",
           "active_child_template": "Active child template",
-          "state_template": "State template"
+          "state_template": "State template",
+          "ignore_season_episode_unknown": "Ignore unknown season and episode"
         },
         "data_description": {
           "browse_media_entity": "Allows override the browse media entity to desired media player. Only affects browsing the media library - playback is still sent to the active child (or the play_media command override, if set).",
           "active_child_template": "A template that will allow you to select (override) active child. Must return the entity_id of the child selected as active, or None to use the default behavior.",
-          "state_template": "A template can be specified to render the state of the media player. In this way, the state may depend on entities that are not themselves media players, like switches or input booleans."
+          "state_template": "A template can be specified to render the state of the media player. In this way, the state may depend on entities that are not themselves media players, like switches or input booleans.",
+          "ignore_season_episode_unknown": "Some sources (e.g. Kodi) send -1 when there is no season or episode, which is displayed as S-1 - E-1. When enabled, a season or an episode set to -1 is treated as not available. Disabled by default."
         }
       },
       "config_guided_no_children": {

@@ -77,7 +77,7 @@ The integration is configured through the Home Assistant UI (config flow), no YA
    - **Configure commands - Guided**: pick, per command (power, playback, navigation, volume, source, grouping), which child entity and action it should call.
    - **Configure commands - Custom (YAML)**: review or write the raw command mapping as YAML, for cases the guided picker can't express (e.g. multiple target entities, extra service data).
    - **Configure attributes - Custom (YAML)**: override attributes by pointing them at a child entity's state or attribute (`entity_id|attribute`).
-   - **Advanced configuration**: set an optional `browse_media` entity, an `active_child_template`, and a `state_template`.
+   - **Advanced configuration**: set an optional `browse_media` entity, an `active_child_template`, a `state_template`, and `ignore_season_episode_unknown` (disabled by default): some sources such as Kodi send `-1` when there is no season or episode, which is displayed as `S-1 - E-1`; when enabled, a season or an episode set to `-1` is treated as not available.
    - **Finalize configuration** to save.
 
 Existing YAML-based setups (`media_player: - platform: custom_universal_media_player`) are still imported automatically into a config entry, with a repair issue flagged to migrate away from YAML. Please check the notice of the [universal media player](https://www.home-assistant.io/integrations/universal/#usage-examples) for the underlying attribute/command semantics.

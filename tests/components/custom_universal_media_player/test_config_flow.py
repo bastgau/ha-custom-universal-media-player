@@ -22,6 +22,7 @@ from custom_components.custom_universal_media_player.const import (
     CONF_CHILDREN,
     CONF_COMMANDS,
     CONF_DEVICE_CLASS_NONE,
+    CONF_IGNORE_SEASON_EPISODE_UNKNOWN,
     DOMAIN,
 )
 import pytest
@@ -508,12 +509,14 @@ async def test_advanced_settings_are_stored(hass: HomeAssistant) -> None:
             CONF_BROWSE_MEDIA_ENTITY: CHILD_SPEAKER,
             CONF_ACTIVE_CHILD_TEMPLATE: f"{{{{ '{CHILD_TV}' }}}}",
             CONF_STATE_TEMPLATE: "{{ 'playing' }}",
+            CONF_IGNORE_SEASON_EPISODE_UNKNOWN: True,
         },
     )
     assert result["type"] is FlowResultType.MENU
 
     result = await choose(hass, flow_id, "config_save")
 
+    assert result["data"][CONF_IGNORE_SEASON_EPISODE_UNKNOWN] is True
     assert result["data"][CONF_BROWSE_MEDIA_ENTITY] == CHILD_SPEAKER
     assert result["data"][CONF_ACTIVE_CHILD_TEMPLATE] == f"{{{{ '{CHILD_TV}' }}}}"
     assert result["data"][CONF_STATE_TEMPLATE] == "{{ 'playing' }}"
@@ -532,6 +535,7 @@ async def test_advanced_settings_can_be_left_empty(hass: HomeAssistant) -> None:
     assert result["data"][CONF_BROWSE_MEDIA_ENTITY] is None
     assert result["data"][CONF_ACTIVE_CHILD_TEMPLATE] is None
     assert result["data"][CONF_STATE_TEMPLATE] is None
+    assert result["data"][CONF_IGNORE_SEASON_EPISODE_UNKNOWN] is False
 
 
 @pytest.mark.parametrize(
@@ -655,6 +659,7 @@ async def test_import_creates_an_entry_and_a_repair_issue(
     assert result["data"][CONF_UNIQUE_ID] == "imported_player"
     assert result["data"][CONF_ACTIVE_CHILD_TEMPLATE] == f"{{{{ '{CHILD_TV}' }}}}"
     assert result["data"][CONF_STATE_TEMPLATE] == "{{ 'playing' }}"
+    assert result["data"][CONF_IGNORE_SEASON_EPISODE_UNKNOWN] is False
     # Templates cannot be serialized into the entry, they are stored raw.
     assert result["data"][CONF_COMMANDS][SERVICE_TURN_ON]["data"] == {"volume_level": "{{ 0.5 }}"}
 
