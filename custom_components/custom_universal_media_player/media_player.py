@@ -106,8 +106,12 @@ from .const import (
     CONF_BROWSE_MEDIA_ENTITY,
     CONF_CHILDREN,
     CONF_COMMANDS,
+    CONF_IGNORE_SEASON_EPISODE_UNKNOWN,
     DOMAIN,
 )
+
+# Value some sources (e.g. Kodi) send when a season or an episode does not exist
+UNKNOWN_SEASON_EPISODE_VALUES: tuple[int | str, ...] = (-1, "-1")
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -176,6 +180,7 @@ PLATFORM_SCHEMA = MEDIA_PLAYER_PLATFORM_SCHEMA.extend(  # pyright: ignore[report
         probatio.Optional(CONF_DEVICE_CLASS): DEVICE_CLASSES_SCHEMA,
         probatio.Optional(CONF_ACTIVE_CHILD_TEMPLATE): cv.template,
         probatio.Optional(CONF_STATE_TEMPLATE): cv.template,
+        probatio.Optional(CONF_IGNORE_SEASON_EPISODE_UNKNOWN, default=False): cv.boolean,
     },
     extra=probatio.REMOVE_EXTRA,
 )
@@ -266,6 +271,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         _attr_device_class (str | None): The device class of the entity.
         _attr_unique_id (str | None): The unique identifier of the entity.
         _browse_media_entity (str | None): The entity id used to browse media.
+        _ignore_season_episode_unknown (bool): Whether a season or an episode set to -1 is reported as unavailable.
 
     """
 
@@ -310,6 +316,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         self._state_template = config.get(CONF_STATE_TEMPLATE)
         self._attr_device_class = config.get(CONF_DEVICE_CLASS)
         self._attr_unique_id = config.get(CONF_UNIQUE_ID)
+        self._ignore_season_episode_unknown = bool(config.get(CONF_IGNORE_SEASON_EPISODE_UNKNOWN, False))
         self._browse_media_entity = config.get(CONF_BROWSE_MEDIA_ENTITY)
         if self._browse_media_entity and not valid_entity_id(self._browse_media_entity):
             # The schema and the UI's entity picker both ask for an entity_id,
@@ -446,6 +453,25 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
             return self._entity_lkp(self._attrs[attr_name][0], self._attrs[attr_name][1])
 
         return self._child_attr(attr_name)
+
+    def _season_episode_attr(self, attr_name: str) -> Any:
+        """Return the season or episode value, hiding the "unknown" marker if configured.
+
+        Some sources (e.g. Kodi) send -1 when there is no season or episode,
+        which would otherwise be displayed as "S-1 - E-1".
+
+        Args:
+            attr_name (str): ATTR_MEDIA_SEASON or ATTR_MEDIA_EPISODE.
+
+        Returns:
+            Any: The value, or None if it is the "unknown" marker and the
+            ignore_season_episode_unknown option is enabled.
+
+        """
+        value = self._override_or_child_attr(attr_name)
+        if self._ignore_season_episode_unknown and value in UNKNOWN_SEASON_EPISODE_VALUES:
+            return None
+        return value
 
     def _child_attr(self, attr_name: str) -> Any:
         """Return the active child's attributes.
@@ -742,7 +768,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
             str | None: The season identifier, or None if unavailable.
 
         """
-        return self._override_or_child_attr(ATTR_MEDIA_SEASON)
+        return self._season_episode_attr(ATTR_MEDIA_SEASON)
 
     @property
     @override
@@ -753,7 +779,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
             str | None: The episode identifier, or None if unavailable.
 
         """
-        return self._override_or_child_attr(ATTR_MEDIA_EPISODE)
+        return self._season_episode_attr(ATTR_MEDIA_EPISODE)
 
     @property
     @override

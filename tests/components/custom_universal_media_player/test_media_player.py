@@ -11,6 +11,7 @@ from custom_components.custom_universal_media_player.const import (
     CONF_BROWSE_MEDIA_ENTITY,
     CONF_CHILDREN,
     CONF_COMMANDS,
+    CONF_IGNORE_SEASON_EPISODE_UNKNOWN,
     DOMAIN,
 )
 from custom_components.custom_universal_media_player.media_player import async_setup_platform
@@ -306,6 +307,75 @@ CHILD_ATTRIBUTES: dict[str, Any] = {
     ATTR_ASSUMED_STATE: True,
     ATTR_ENTITY_PICTURE: "https://example.com/cover.png",
 }
+
+
+@pytest.mark.parametrize("attribute", [ATTR_MEDIA_SEASON, ATTR_MEDIA_EPISODE])
+@pytest.mark.parametrize("unknown_value", [-1, "-1"])
+async def test_unknown_season_and_episode_are_kept_by_default(
+    hass: HomeAssistant,
+    setup_player: SetupPlayer,
+    attribute: str,
+    unknown_value: Any,
+) -> None:
+    """Without the option, a -1 season or episode is republished as is."""
+    await setup_player(**{CONF_CHILDREN: [CHILD_TV]})
+
+    await set_child_state(hass, CHILD_TV, MediaPlayerState.PLAYING, **{attribute: unknown_value})
+
+    assert hass.states.get(PLAYER).attributes[attribute] == unknown_value
+
+
+@pytest.mark.parametrize("attribute", [ATTR_MEDIA_SEASON, ATTR_MEDIA_EPISODE])
+@pytest.mark.parametrize("unknown_value", [-1, "-1"])
+async def test_unknown_season_and_episode_are_hidden_when_enabled(
+    hass: HomeAssistant,
+    setup_player: SetupPlayer,
+    attribute: str,
+    unknown_value: Any,
+) -> None:
+    """With the option, a -1 season or episode is not published."""
+    await setup_player(**{CONF_CHILDREN: [CHILD_TV], CONF_IGNORE_SEASON_EPISODE_UNKNOWN: True})
+
+    await set_child_state(hass, CHILD_TV, MediaPlayerState.PLAYING, **{attribute: unknown_value})
+
+    assert attribute not in hass.states.get(PLAYER).attributes
+
+
+@pytest.mark.parametrize(
+    ("attribute", "expected"),
+    [(ATTR_MEDIA_SEASON, "1"), (ATTR_MEDIA_EPISODE, "2")],
+)
+async def test_known_season_and_episode_are_kept_when_enabled(
+    hass: HomeAssistant,
+    setup_player: SetupPlayer,
+    attribute: str,
+    expected: str,
+) -> None:
+    """The option only hides the -1 marker, real values still go through."""
+    await setup_player(**{CONF_CHILDREN: [CHILD_TV], CONF_IGNORE_SEASON_EPISODE_UNKNOWN: True})
+
+    await set_child_state(hass, CHILD_TV, MediaPlayerState.PLAYING, **{attribute: expected})
+
+    assert hass.states.get(PLAYER).attributes[attribute] == expected
+
+
+async def test_unknown_season_from_an_override_is_hidden_when_enabled(
+    hass: HomeAssistant,
+    setup_player: SetupPlayer,
+) -> None:
+    """The option also applies to a season read through an attribute override."""
+    await setup_player(
+        **{
+            CONF_CHILDREN: [CHILD_TV],
+            CONF_ATTRS: {ATTR_MEDIA_SEASON: f"{CHILD_SPEAKER}|{ATTR_MEDIA_SEASON}"},
+            CONF_IGNORE_SEASON_EPISODE_UNKNOWN: True,
+        },
+    )
+
+    hass.states.async_set(CHILD_SPEAKER, MediaPlayerState.PLAYING, {ATTR_MEDIA_SEASON: -1})
+    await set_child_state(hass, CHILD_TV, MediaPlayerState.PLAYING)
+
+    assert ATTR_MEDIA_SEASON not in hass.states.get(PLAYER).attributes
 
 
 @pytest.mark.parametrize(

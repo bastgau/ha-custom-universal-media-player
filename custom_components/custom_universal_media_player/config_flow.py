@@ -52,6 +52,7 @@ from homeassistant.exceptions import TemplateError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.issue_registry import IssueSeverity, async_create_issue
 from homeassistant.helpers.selector import (
+    BooleanSelector,  # pyright: ignore[reportUnknownVariableType]
     EntitySelector,  # pyright: ignore[reportUnknownVariableType]
     EntitySelectorConfig,
     SelectSelector,  # pyright: ignore[reportUnknownVariableType]
@@ -72,6 +73,7 @@ from .const import (
     CONF_CHILDREN,
     CONF_COMMANDS,
     CONF_DEVICE_CLASS_NONE,
+    CONF_IGNORE_SEASON_EPISODE_UNKNOWN,
     DOMAIN,
 )
 from .media_player import ATTRS_SCHEMA, CMD_SCHEMA
@@ -658,6 +660,9 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
                 self._data[CONF_BROWSE_MEDIA_ENTITY] = user_input.get(CONF_BROWSE_MEDIA_ENTITY) or None
                 self._data[CONF_ACTIVE_CHILD_TEMPLATE] = active_child_template
                 self._data[CONF_STATE_TEMPLATE] = state_template
+                self._data[CONF_IGNORE_SEASON_EPISODE_UNKNOWN] = bool(
+                    user_input.get(CONF_IGNORE_SEASON_EPISODE_UNKNOWN, False),
+                )
                 return await self.async_step_config_menu()
 
         schema = probatio.Schema(
@@ -670,6 +675,7 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
                 ),
                 probatio.Optional(CONF_ACTIVE_CHILD_TEMPLATE): TemplateSelector(),
                 probatio.Optional(CONF_STATE_TEMPLATE): TemplateSelector(),
+                probatio.Optional(CONF_IGNORE_SEASON_EPISODE_UNKNOWN, default=False): BooleanSelector(),
             },
         )
         suggested_values = (
@@ -679,6 +685,7 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
                 CONF_BROWSE_MEDIA_ENTITY: self._data.get(CONF_BROWSE_MEDIA_ENTITY),
                 CONF_ACTIVE_CHILD_TEMPLATE: self._data.get(CONF_ACTIVE_CHILD_TEMPLATE),
                 CONF_STATE_TEMPLATE: self._data.get(CONF_STATE_TEMPLATE),
+                CONF_IGNORE_SEASON_EPISODE_UNKNOWN: self._data.get(CONF_IGNORE_SEASON_EPISODE_UNKNOWN, False),
             }
         )
 
@@ -1310,6 +1317,7 @@ class CustomUniversalMediaPlayerConfigFlow(ConfigFlow, domain=DOMAIN):
             CONF_DEVICE_CLASS: import_data.get(CONF_DEVICE_CLASS),
             CONF_ACTIVE_CHILD_TEMPLATE: active_child_template.template if active_child_template else None,
             CONF_STATE_TEMPLATE: state_template.template if state_template else None,
+            CONF_IGNORE_SEASON_EPISODE_UNKNOWN: import_data.get(CONF_IGNORE_SEASON_EPISODE_UNKNOWN, False),
         }
 
         async_create_issue(
