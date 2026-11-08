@@ -95,6 +95,7 @@ from homeassistant.helpers.event import (
     TrackTemplateResult,
     async_track_state_change_event,
     async_track_template_result,
+    async_track_time_interval,
 )
 from homeassistant.helpers.service import async_call_from_config
 
@@ -107,7 +108,9 @@ from .const import (
     CONF_CHILDREN,
     CONF_COMMANDS,
     CONF_IGNORE_SEASON_EPISODE_UNKNOWN,
+    CONF_REFRESH_ACTIVE_CHILD,
     DOMAIN,
+    REFRESH_ACTIVE_CHILD_INTERVAL,
 )
 
 # Value some sources (e.g. Kodi) send when a season or an episode does not exist
@@ -181,6 +184,7 @@ PLATFORM_SCHEMA = MEDIA_PLAYER_PLATFORM_SCHEMA.extend(  # pyright: ignore[report
         probatio.Optional(CONF_ACTIVE_CHILD_TEMPLATE): cv.template,
         probatio.Optional(CONF_STATE_TEMPLATE): cv.template,
         probatio.Optional(CONF_IGNORE_SEASON_EPISODE_UNKNOWN, default=False): cv.boolean,
+        probatio.Optional(CONF_REFRESH_ACTIVE_CHILD, default=False): cv.boolean,
     },
     extra=probatio.REMOVE_EXTRA,
 )
@@ -272,6 +276,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         _attr_unique_id (str | None): The unique identifier of the entity.
         _browse_media_entity (str | None): The entity id used to browse media.
         _ignore_season_episode_unknown (bool): Whether a season or an episode set to -1 is reported as unavailable.
+        _refresh_active_child (bool): Whether the active child is periodically asked to refresh itself while playing.
 
     """
 
@@ -317,6 +322,7 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
         self._attr_device_class = config.get(CONF_DEVICE_CLASS)
         self._attr_unique_id = config.get(CONF_UNIQUE_ID)
         self._ignore_season_episode_unknown = bool(config.get(CONF_IGNORE_SEASON_EPISODE_UNKNOWN, False))
+        self._refresh_active_child = bool(config.get(CONF_REFRESH_ACTIVE_CHILD, False))
         self._browse_media_entity = config.get(CONF_BROWSE_MEDIA_ENTITY)
         if self._browse_media_entity and not valid_entity_id(self._browse_media_entity):
             # The schema and the UI's entity picker both ask for an entity_id,
@@ -399,6 +405,38 @@ class CustomUniversalMediaPlayer(MediaPlayerEntity):  # pylint: disable=too-many
             depend.extend(entity[0].split("-"))
 
         self.async_on_remove(async_track_state_change_event(self.hass, list(set(depend)), _async_on_dependency_update))
+
+        if self._refresh_active_child:
+            self.async_on_remove(
+                async_track_time_interval(self.hass, self._async_refresh_active_child, REFRESH_ACTIVE_CHILD_INTERVAL),
+            )
+
+    async def _async_refresh_active_child(self, _now: datetime | None = None) -> None:
+        """Ask the active child to refresh itself while it is playing.
+
+        A child may change what it plays (e.g. the programme of a TV channel)
+        without publishing a new state. The player only follows the state
+        changes of its children, so it would keep showing the previous title.
+        Forcing the child to update makes it publish the change, which the
+        player then picks up.
+
+        Args:
+            _now (datetime | None): The time the interval fired at, unused.
+
+        """
+        child_state = self._child_state
+        if child_state is None or child_state.state != MediaPlayerState.PLAYING:
+            return
+
+        component: EntityComponent[MediaPlayerEntity] | None = self.hass.data.get(MEDIA_PLAYER_DOMAIN)
+        if component is None or (entity := component.get_entity(child_state.entity_id)) is None:
+            return
+
+        try:
+            await entity.async_update_ha_state(force_refresh=True)
+        except Exception:  # pylint: disable=broad-exception-caught
+            # A failing child must not stop the next refreshes.
+            _LOGGER.debug("%s: refreshing %s failed", self._attr_name, child_state.entity_id, exc_info=True)
 
     def _entity_lkp(self, entity_id: str, state_attr: str | None = None) -> Any:
         """Look up an entity state or attribute value.
