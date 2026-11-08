@@ -30,9 +30,7 @@
   "remoteEnv": {
     "GITHUB_PERSONAL_ACCESS_TOKEN": "${localEnv:GITHUB_PERSONAL_ACCESS_TOKEN}"
   },
-  "forwardPorts": [
-    8123
-  ],
+  "forwardPorts": [8123],
   "portsAttributes": {
     "8123": {
       "label": "Home Assistant",
@@ -81,9 +79,7 @@
         },
         "python.testing.pytestEnabled": true,
         "python.testing.unittestEnabled": false,
-        "python.testing.pytestArgs": [
-          "tests"
-        ]
+        "python.testing.pytestArgs": ["tests"]
       }
     }
   },
